@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from "@testing-library/svelte";
 import GoATextArea from "./TextArea.svelte";
+import GoATextAreaFormItemWrapper from "./TextAreaFormItemWrapper.test.svelte";
 import { describe, it, expect, vi } from "vitest";
 
 describe("GoATextArea", () => {
@@ -72,7 +73,6 @@ describe("GoATextArea", () => {
       expect(onKeyPress).toBeCalledTimes(1);
       expect(onChange).toBeCalledTimes(1);
     });
-
   });
 
   it("can be disabled", async () => {
@@ -111,10 +111,35 @@ describe("GoATextArea", () => {
     expect(root).toBeTruthy();
   });
 
-  it("defaults to the name property if arialabel is not supplied", async () => {
-    const el = render(GoATextArea, { name: "about" });
-    const root = el.container.querySelector('[aria-label="about"]');
-    expect(root).toBeTruthy();
+  it("should set aria-label when not provided", async () => {
+    const result = render(GoATextAreaFormItemWrapper, {
+      inputId: "",
+      inputName: "inputName",
+      label: "DDD Alberta",
+      testIdFormItem: "formItem-testid",
+      testIdInput: "input-testid",
+    });
+    const textAreaEl = result.queryByTestId("input-testid");
+
+    await waitFor(() => {
+      expect(textAreaEl?.getAttribute("aria-label")).toBe("DDD Alberta");
+    });
+  });
+
+  it("should not overwrite aria-label if a value was already assigned", async () => {
+    const result = render(GoATextAreaFormItemWrapper, {
+      inputId: "inputId",
+      inputName: "inputName",
+      arialabel: "DONT OVERWRITE ME",
+      label: "DDD Alberta",
+      testIdFormItem: "formItem-testid",
+      testIdInput: "input-testid",
+    });
+    const textAreaEl = result.queryByTestId("input-testid");
+
+    await waitFor(() => {
+      expect(textAreaEl?.getAttribute("aria-label")).toBe("DONT OVERWRITE ME");
+    });
   });
 
   describe("Char count", () => {

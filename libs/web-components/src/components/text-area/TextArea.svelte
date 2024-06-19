@@ -5,6 +5,8 @@
   import { pluralize, toBoolean } from "../../common/utils";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
+  import { onMount } from "svelte";
+  import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   export let name: string;
   export let value: string = "";
@@ -38,6 +40,7 @@
   // privates
 
   let _textareaEl: HTMLTextAreaElement;
+  let _rootEl: HTMLElement;
 
   // functions
 
@@ -69,10 +72,22 @@
       }),
     );
   }
+
+  onMount(async () => {
+    setTimeout(() => {
+      _rootEl?.dispatchEvent(
+        new CustomEvent<FormItemChannelProps>("input:mounted", {
+          composed: true,
+          bubbles: true,
+          detail: { el: _textareaEl },
+        }),
+      );
+    }, 10);
+  });
 </script>
 
 <!-- HTML -->
-<div id="container">
+<div id="container" bind:this={_rootEl}>
   <div
     data-testid="root"
     class="root"
@@ -89,7 +104,7 @@
       {name}
       {placeholder}
       {rows}
-      aria-label={arialabel || name}
+      aria-label={arialabel}
       disabled={isDisabled}
       readonly={isReadonly}
       data-testid={testid}
