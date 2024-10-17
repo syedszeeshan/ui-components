@@ -148,11 +148,11 @@
     const { el } = props;
 
     // Check if aria-label is present and has a value in the child element
-    //const ariaLabel = el.getAttribute("aria-label");
-    const ariaLabel = ce.detail.el.getAttribute("aria-label");
+    const ariaLabel = el.getAttribute("aria-label");
+    //const ariaLabel = ce.detail.el.getAttribute("aria-label");
     if (!ariaLabel || ariaLabel.trim() === "") {
-      //el.setAttribute("aria-label", label);
-      ce.detail.el.setAttribute("aria-label", label);
+      el.setAttribute("aria-label", label);
+      //ce.detail.el.setAttribute("aria-label", label);
     }
   }
 </script>
