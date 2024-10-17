@@ -2,11 +2,24 @@
 
 <!-- Script -->
 <script lang="ts">
-  import { dispatch, pluralize, receive, relay, toBoolean } from "../../common/utils";
+  import {
+    dispatch,
+    pluralize,
+    receive,
+    relay,
+    toBoolean,
+  } from "../../common/utils";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
   import { onMount, tick } from "svelte";
-  import { FieldsetResetErrorsMsg, FieldsetSetErrorMsg, FormFieldMountMsg, FormFieldMountRelayDetail, FormSetValueMsg, FormSetValueRelayDetail } from "../../types/relay-types";
+  import {
+    FieldsetResetErrorsMsg,
+    FieldsetSetErrorMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+    FormSetValueMsg,
+    FormSetValueRelayDetail,
+  } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   export let name: string;
@@ -36,10 +49,18 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      dispatch("errorChange", { isError });
+      //dispatch("errorChange", { isError });
+      _rootEl?.dispatchEvent(
+        new CustomEvent("errorChange", {
+          bubbles: true,
+          composed: true,
+          detail: { isError },
+        }),
+      );
+
       prevError = isError;
     }
-  };
+  }
   $: isDisabled = toBoolean(disabled);
   $: isReadonly = toBoolean(readonly);
   $: count =
@@ -67,7 +88,7 @@
         detail: { el: _textareaEl },
       }),
     );
-  })
+  });
 
   // functions
 
@@ -96,7 +117,7 @@
     relay<FormFieldMountRelayDetail>(
       _textareaEl,
       FormFieldMountMsg,
-      { name, el: _textareaEl},
+      { name, el: _textareaEl },
       { bubbles: true, timeout: 10 },
     );
   }
@@ -131,15 +152,15 @@
     );
   }
 
-  function dispatch(name: string, detail: any) {
-    _rootEl?.dispatchEvent(
-      new CustomEvent(name, {
-        bubbles: true,
-        composed: true,
-        detail,
-      }),
-    );
-  }
+  // function dispatch(name: string, detail: any) {
+  //   _rootEl?.dispatchEvent(
+  //     new CustomEvent(name, {
+  //       bubbles: true,
+  //       composed: true,
+  //       detail,
+  //     }),
+  //   );
+  // }
 </script>
 
 <!-- HTML -->

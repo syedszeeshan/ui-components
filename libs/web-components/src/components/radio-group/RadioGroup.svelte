@@ -2,11 +2,27 @@
 
 <script lang="ts">
   import type { Spacing } from "../../common/styling";
-  import { typeValidator, toBoolean, dispatch, receive, relay } from "../../common/utils";
+  import {
+    typeValidator,
+    toBoolean,
+    dispatch,
+    receive,
+    relay,
+  } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
   import { onMount, tick } from "svelte";
-  import { GoARadioItemProps, RadioItemSelectProps } from "../radio-item/RadioItem.svelte";
-  import { FormSetValueMsg, FormSetValueRelayDetail, FieldsetSetErrorMsg, FieldsetResetErrorsMsg, FormFieldMountRelayDetail, FormFieldMountMsg } from "../../types/relay-types";
+  import {
+    GoARadioItemProps,
+    RadioItemSelectProps,
+  } from "../radio-item/RadioItem.svelte";
+  import {
+    FormSetValueMsg,
+    FormSetValueRelayDetail,
+    FieldsetSetErrorMsg,
+    FieldsetResetErrorsMsg,
+    FormFieldMountRelayDetail,
+    FormFieldMountMsg,
+  } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   // Validator
@@ -46,7 +62,14 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      dispatch("errorChange", { isError });
+      //dispatch("errorChange", { isError });
+      _rootEl?.dispatchEvent(
+        new CustomEvent("errorChange", {
+          bubbles: true,
+          composed: true,
+          detail: { isError },
+        }),
+      );
       prevError = isError;
     }
     bindOptions();
@@ -108,7 +131,7 @@
     relay<FormFieldMountRelayDetail>(
       _rootEl,
       FormFieldMountMsg,
-      { name, el: _rootEl},
+      { name, el: _rootEl },
       { bubbles: true, timeout: 10 },
     );
   }
@@ -177,15 +200,15 @@
     });
   }
 
-  function dispatch(name: string, detail: any) {
-    _rootEl?.dispatchEvent(
-      new CustomEvent(name, {
-        bubbles: true,
-        composed: true,
-        detail,
-      }),
-    );
-  }
+  // function dispatch(name: string, detail: any) {
+  //   _rootEl?.dispatchEvent(
+  //     new CustomEvent(name, {
+  //       bubbles: true,
+  //       composed: true,
+  //       detail,
+  //     }),
+  //   );
+  // }
 </script>
 
 <!-- Html -->

@@ -19,6 +19,7 @@
     FormSetValueMsg,
     FormSetValueRelayDetail,
   } from "../../types/relay-types";
+  import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   // Validators
   const [Types, validateType] = typeValidator("Input type", [
@@ -95,7 +96,15 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      dispatch("errorChange", { isError });
+      //dispatch("errorChange", { isError });
+      _rootEl?.dispatchEvent(
+      new CustomEvent("errorChange", {
+        bubbles: true,
+        composed: true,
+        detail: { isError },
+      }),
+    );
+
       prevError = isError;
     }
   }
@@ -271,15 +280,15 @@
     }
   }
 
-  function dispatch(name: string, detail: any) {
-    _rootEl?.dispatchEvent(
-      new CustomEvent(name, {
-        bubbles: true,
-        composed: true,
-        detail,
-      }),
-    );
-  }
+  // function dispatch(name: string, detail: any) {
+  //   _rootEl?.dispatchEvent(
+  //     new CustomEvent(name, {
+  //       bubbles: true,
+  //       composed: true,
+  //       detail,
+  //     }),
+  //   );
+  // }
 
 
 </script>

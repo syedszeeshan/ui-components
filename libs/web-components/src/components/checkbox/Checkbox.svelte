@@ -6,8 +6,21 @@
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
 
-  import { dispatch, fromBoolean, receive, relay, toBoolean } from "../../common/utils";
-  import { FormSetValueMsg, FormSetValueRelayDetail, FieldsetSetErrorMsg, FieldsetResetErrorsMsg, FormFieldMountRelayDetail, FormFieldMountMsg } from "../../types/relay-types";
+  import {
+    dispatch,
+    fromBoolean,
+    receive,
+    relay,
+    toBoolean,
+  } from "../../common/utils";
+  import {
+    FormSetValueMsg,
+    FormSetValueRelayDetail,
+    FieldsetSetErrorMsg,
+    FieldsetResetErrorsMsg,
+    FormFieldMountRelayDetail,
+    FormFieldMountMsg,
+  } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
   // Required
   export let name: string;
@@ -43,7 +56,15 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      dispatch("errorChange", { isError });
+      //dispatch("errorChange", { isError });
+      //TODO: use disaptch from the utils 
+      _rootEl?.dispatchEvent(
+        new CustomEvent("errorChange", {
+          bubbles: true,
+          composed: true,
+          detail: { isError },
+        }),
+      );
       prevError = isError;
     }
   }
@@ -95,7 +116,7 @@
     relay<FormFieldMountRelayDetail>(
       _checkboxRef,
       FormFieldMountMsg,
-      { name, el: _checkboxRef},
+      { name, el: _checkboxRef },
       { bubbles: true, timeout: 10 },
     );
   }
@@ -120,15 +141,15 @@
     );
   }
 
-  function dispatch(name: string, detail: any) {
-    _rootEl?.dispatchEvent(
-      new CustomEvent(name, {
-        bubbles: true,
-        composed: true,
-        detail,
-      }),
-    );
-  }
+  // function dispatchFn(name: string, detail: any) {
+  //   _rootEl?.dispatchEvent(
+  //     new CustomEvent(name, {
+  //       bubbles: true,
+  //       composed: true,
+  //       detail,
+  //     }),
+  //   );
+  // }
 </script>
 
 <!-- View -->
@@ -271,7 +292,8 @@
   */
 
   .container:hover {
-    box-shadow: inset 0 0 0 var(--goa-border-width-m) var(--goa-color-interactive-hover);
+    box-shadow: inset 0 0 0 var(--goa-border-width-m)
+      var(--goa-color-interactive-hover);
   }
   .container svg {
     fill: var(--goa-color-greyscale-white);
@@ -284,7 +306,6 @@
   .container.selected:hover {
     background-color: var(--goa-color-interactive-hover);
   }
-
 
   /* Error Container */
   .error .container,
