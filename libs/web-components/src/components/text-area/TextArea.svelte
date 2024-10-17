@@ -2,10 +2,11 @@
 
 <!-- Script -->
 <script lang="ts">
-  import { pluralize, toBoolean } from "../../common/utils";
+  import { dispatch, pluralize, receive, relay, toBoolean } from "../../common/utils";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
   import { onMount, tick } from "svelte";
+  import { FieldsetResetErrorsMsg, FieldsetSetErrorMsg, FormFieldMountMsg, FormFieldMountRelayDetail, FormSetValueMsg, FormSetValueRelayDetail } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   export let name: string;
@@ -51,9 +52,12 @@
   let _textareaEl: HTMLTextAreaElement;
   let _rootEl: HTMLElement;
 
-  // functions
+  // Hooks
 
   onMount(async () => {
+    addRelayListener();
+    sendMountedMessage();
+
     await tick();
 
     _rootEl?.dispatchEvent(
@@ -63,9 +67,41 @@
         detail: { el: _textareaEl },
       }),
     );
-  });
+  })
 
-  function onChange(e: KeyboardEvent) {
+  // functions
+
+  function addRelayListener() {
+    receive(_textareaEl, (action, data) => {
+      switch (action) {
+        case FormSetValueMsg:
+          onSetValue(data as FormSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          error = "true";
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+      }
+    });
+  }
+
+  function onSetValue(detail: FormSetValueRelayDetail) {
+    value = detail.value;
+    dispatch(_textareaEl, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _textareaEl,
+      FormFieldMountMsg,
+      { name, el: _textareaEl},
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
+  function onChange(e: Event) {
     if (isDisabled) return;
     dispatchChange(e);
   }
@@ -76,11 +112,12 @@
     dispatchChange(e);
   }
 
-  function dispatchChange(_: KeyboardEvent) {
+  function dispatchChange(_: Event) {
     _textareaEl.dispatchEvent(
       new CustomEvent("_change", {
         composed: true,
         detail: { name, value: _textareaEl.value },
+        bubbles: true,
       }),
     );
   }

@@ -6,7 +6,8 @@
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
 
-  import { fromBoolean, toBoolean } from "../../common/utils";
+  import { dispatch, fromBoolean, receive, relay, toBoolean } from "../../common/utils";
+  import { FormSetValueMsg, FormSetValueRelayDetail, FieldsetSetErrorMsg, FieldsetResetErrorsMsg, FormFieldMountRelayDetail, FormFieldMountMsg } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
   // Required
   export let name: string;
@@ -30,7 +31,8 @@
 
   // Private
   let _value: string;
-  let _checkboxEl: HTMLElement;
+  //let _checkboxEl: HTMLElement;
+  let _checkboxRef: HTMLElement;
   let _descriptionId: string;
   let _rootEl: HTMLElement;
   let isError = toBoolean(error);
@@ -55,18 +57,52 @@
       new CustomEvent<FormItemChannelProps>("input:mounted", {
         composed: true,
         bubbles: true,
-        detail: { el: _checkboxEl },
+        detail: { el: _checkboxRef },
       }),
     );
 
     // hold on to the initial value to prevent losing it on check changes
     _value = value;
     _descriptionId = `description_${name}`;
+
+    addRelayListener();
+    sendMountedMessage();
   });
+
+  function addRelayListener() {
+    receive(_checkboxRef, (action, data) => {
+      switch (action) {
+        case FormSetValueMsg:
+          onSetValue(data as FormSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          error = "true";
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+      }
+    });
+  }
+
+  function onSetValue(detail: FormSetValueRelayDetail) {
+    value = detail.value;
+    checked = detail.value ? "true" : "false";
+    dispatch(_checkboxRef, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _checkboxRef,
+      FormFieldMountMsg,
+      { name, el: _checkboxRef},
+      { bubbles: true, timeout: 10 },
+    );
+  }
 
   function onChange(e: Event) {
     // Manually set the focus back to the checkbox after the state change
-    _checkboxEl.focus();
+    _checkboxRef.focus();
     // An empty string is required as setting the second value to `null` caused the data to get
     // out of sync with the events.
     const newCheckStatus = !isChecked;
@@ -79,6 +115,7 @@
       new CustomEvent("_change", {
         composed: true,
         detail: { name, checked: newCheckStatus, value: newValue },
+        bubbles: true,
       }),
     );
   }
@@ -112,7 +149,7 @@
   >
     <div class="container" class:selected={isChecked}>
       <input
-        bind:this={_checkboxEl}
+        bind:this={_checkboxRef}
         id={name}
         {name}
         checked={isChecked}
@@ -216,9 +253,11 @@
     /* prevent squishing of checkbox */
     flex: 0 0 auto;
   }
+
+  /*
   .container:hover {
     box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-hover);
+    var(--goa-color-interactive-hover);
     border: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
   }
   .container:focus-visible,
@@ -228,6 +267,11 @@
   }
   .container:focus-within:has(:focus-visible) {
     box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  }
+  */
+
+  .container:hover {
+    box-shadow: inset 0 0 0 var(--goa-border-width-m) var(--goa-color-interactive-hover);
   }
   .container svg {
     fill: var(--goa-color-greyscale-white);
@@ -241,19 +285,22 @@
     background-color: var(--goa-color-interactive-hover);
   }
 
+
   /* Error Container */
   .error .container,
-  .error .container:hover,
-  .error .container:focus-within {
+  .error .container:hover {
+    border: var(--goa-border-width-m) solid var(--goa-color-interactive-error);
     background-color: var(--goa-color-greyscale-white);
-    border: var(--goa-border-width-s) solid var(--goa-color-emergency-default);
-    box-shadow: inset 0 0 0 1px var(--goa-color-emergency-default);
-  }
-  .error .container:focus-within {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+    box-shadow: none;
   }
   .error .container svg {
-    fill: var(--goa-color-emergency-default);
+    fill: var(--goa-color-interactive-error);
+  }
+
+  /* Focus Container */
+  .container:has(:focus-visible) {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
   }
 
   /* Disabled */
@@ -261,22 +308,19 @@
     cursor: default;
   }
   .disabled .text {
-    opacity: 40%;
+    color: var(--goa-color-greyscale-500);
   }
   /* override base settings */
-  .disabled .container,
-  .disabled .container:hover {
+  .disabled:not(.error) .container {
     border: var(--goa-border-width-s) solid var(--goa-color-greyscale-400);
     box-shadow: none;
-    opacity: 40%;
   }
-  .disabled .container.selected,
-  .disabled .container.selected:hover {
+  .disabled:not(.error) .container.selected {
     border: none;
-    background-color: var(--goa-color-interactive-default);
+    background-color: var(--goa-color-interactive-disabled);
   }
   .disabled.error .container.selected {
-    border: var(--goa-border-width-s) solid var(--goa-color-emergency-default);
-    box-shadow: inset 0 0 0 1px var(--goa-color-emergency-default);
+    border: var(--goa-border-width-s) solid var(--goa-color-interactive-error);
+    box-shadow: inset 0 0 0 1px var(--goa-color-interactive-error);
   }
 </style>

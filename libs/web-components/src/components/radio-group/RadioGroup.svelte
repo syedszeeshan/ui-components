@@ -2,13 +2,11 @@
 
 <script lang="ts">
   import type { Spacing } from "../../common/styling";
-  import { typeValidator, toBoolean } from "../../common/utils";
+  import { typeValidator, toBoolean, dispatch, receive, relay } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
   import { onMount, tick } from "svelte";
-  import {
-    GoARadioItemProps,
-    RadioItemSelectProps,
-  } from "../radio-item/RadioItem.svelte";
+  import { GoARadioItemProps, RadioItemSelectProps } from "../radio-item/RadioItem.svelte";
+  import { FormSetValueMsg, FormSetValueRelayDetail, FieldsetSetErrorMsg, FieldsetResetErrorsMsg, FormFieldMountRelayDetail, FormFieldMountMsg } from "../../types/relay-types";
   import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   // Validator
@@ -64,7 +62,8 @@
 
   onMount(async () => {
     validateOrientation(orientation);
-
+    addRelayListener();
+    sendMountedMessage();
     getChildren();
 
     _rootEl.addEventListener("_radioItemChange", (e: Event) => {
@@ -83,6 +82,36 @@
   });
 
   // Functions
+
+  function addRelayListener() {
+    receive(_rootEl, (action, data) => {
+      switch (action) {
+        case FormSetValueMsg:
+          onSetValue(data as FormSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          error = "true";
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+      }
+    });
+  }
+
+  function onSetValue(detail: FormSetValueRelayDetail) {
+    value = detail.value;
+    dispatch(_rootEl, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _rootEl,
+      FormFieldMountMsg,
+      { name, el: _rootEl},
+      { bubbles: true, timeout: 10 },
+    );
+  }
 
   function getChildren() {
     _rootEl.addEventListener("radio-item:mounted", (e: Event) => {

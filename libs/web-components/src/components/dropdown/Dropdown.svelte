@@ -6,8 +6,9 @@
   import type { GoAIconType } from "../icon/Icon.svelte";
   import type { Spacing } from "../../common/styling";
   import type { Option } from "./DropdownItem.svelte";
-  import { fromBoolean, toBoolean } from "../../common/utils";
+  import { dispatch, fromBoolean, receive, relay, toBoolean } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
+  import { FieldsetResetErrorsMsg, FieldsetSetErrorMsg, FormFieldMountMsg, FormFieldMountRelayDetail, FormSetValueMsg, FormSetValueRelayDetail } from "../../types/relay-types";
 
   interface EventHandler {
     handleKeyUp: (e: KeyboardEvent) => void;
@@ -34,6 +35,7 @@
   export let mr: Spacing = null;
   export let mb: Spacing = null;
   export let ml: Spacing = null;
+  export let testid: string = "";
 
   //
   // Private
@@ -56,6 +58,9 @@
   let _values: string[] = [];
 
   let _bindTimeoutId: any;
+
+  let _mountStatus: "active" | "ready" = "ready";
+  let _mountTimeoutId: any = undefined;
 
   //
   // Reactive
@@ -83,6 +88,8 @@
 
   onMount(() => {
     getChildren();
+    addRelayListener();
+    sendMountedMessage();
 
     _eventHandler = _filterable
       ? new ComboboxKeyUpHandler(_inputEl)
@@ -93,10 +100,68 @@
   // Functions
   //
 
+  function addRelayListener() {
+    receive(_rootEl, (action, data) => {
+      switch (action) {
+        case FormSetValueMsg:
+          onSetValue(data as FormSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          error = "true";
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+      }
+    });
+  }
+
+  function onSetValue(detail: FormSetValueRelayDetail) {
+    value = detail.value
+    dispatch(_rootEl, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _rootEl,
+      FormFieldMountMsg,
+      { name, el: _rootEl},
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
   function getChildren() {
     _rootEl?.addEventListener("dropdown-item:mounted", (e: Event) => {
-      const ce = e as CustomEvent<Option>;
-      _options = [..._options, ce.detail];
+
+      const detail = (e as CustomEvent<Option>).detail;
+
+      if (_mountStatus === "ready") {
+        if (detail.mountType === "reset") {
+          _options = [];
+        }
+        _mountStatus = "active";
+      }
+
+      switch (detail.mountType) {
+        case "append":
+          _options = [..._options, detail];
+          break;
+        case "prepend":
+          _options = [detail, ..._options];
+          break;
+        case "reset":
+          _options = [..._options, detail];
+          break;
+      }
+
+      // reset the mountStatus back to `ready` after all new children are mounted
+      if (_mountTimeoutId) {
+        clearTimeout(_mountTimeoutId);
+      }
+      _mountTimeoutId = setTimeout(() => {
+        _mountStatus = "ready";
+        _mountTimeoutId = undefined;
+      }, 10);
 
       // ensure bind only runs once for all children
       if (_bindTimeoutId) {
@@ -126,7 +191,7 @@
   }
 
   function setSelected() {
-    _selectedOption = _options.find(o => o.value == _values[0])
+    _selectedOption = _options.find((o) => o.value == _values[0]);
   }
 
   // parse and convert values to strings to avoid later type comparison issues
@@ -243,12 +308,12 @@
       : { name, value: newValue };
 
     if (!_isDirty) {
-      return;  
+      return;
     }
 
     setTimeout(() => {
       _rootEl?.dispatchEvent(
-        new CustomEvent("_change", { composed: true, detail }),
+        new CustomEvent("_change", { composed: true, detail, bubbles: true }),
       );
       _isDirty = false;
     }, 1);
@@ -263,7 +328,7 @@
 
     _isDirty = option.value !== _selectedOption?.value;
     _selectedOption = option;
-  
+
     if (!_native) {
       hideMenu();
       syncFilteredOptions();
@@ -292,7 +357,7 @@
       _selectedOption = undefined;
       setDisplayedValue();
       dispatchValue("");
-    }  
+    }
   }
 
   function onInputKeyUp(e: KeyboardEvent) {
@@ -501,7 +566,7 @@
 
 <!-- Template -->
 <div
-  data-testid={`${name}-dropdown`}
+  data-testid={testid || `${name}-dropdown`}
   class="dropdown"
   class:dropdown-native={_native}
   style={`
@@ -535,11 +600,10 @@
       {disabled}
       {relative}
       data-testid="option-list"
-      maxwidth={`${_popoverMaxWidth}px`}
+      width={`${_popoverMaxWidth || 100}px`}
       open={_isMenuVisible}
       padded="false"
       tabindex="-1"
-      width="100%"
       on:_open={showMenu}
       on:_close={hideMenu}
     >

@@ -6,9 +6,12 @@
   import { isUrlMatch, getMatchedLink } from "../../common/urls";
   import { SideMenuGroupProps } from "../side-menu-group/SideMenuGroup.svelte";
 
+  export let testid: string = "";
+
   let _rootEl: HTMLElement;
   let _sideMenuLinks: Element[] = [];
   let _sideMenuGroupItems: SideMenuGroupProps[] = [];
+  let observer: MutationObserver | null = null;
 
   onMount(async () => {
     await tick();
@@ -34,11 +37,13 @@
         return el;
       });
 
-    _rootEl.addEventListener("sidemenugroup:mounted", (e: Event) => {
-      const sideMenuGroupProps = (e as CustomEvent<SideMenuGroupProps>).detail;
-      _sideMenuGroupItems = [..._sideMenuGroupItems, sideMenuGroupProps];
-      setCurrentUrl();
-    });
+    _rootEl.addEventListener("sidemenugroup:mounted", handleSideMenuGroupMount);
+  }
+
+  function handleSideMenuGroupMount(e: Event) {
+    const sideMenuGroupProps = (e as CustomEvent<SideMenuGroupProps>).detail;
+    _sideMenuGroupItems = [..._sideMenuGroupItems, sideMenuGroupProps];
+    setCurrentUrl();
   }
 
   function setCurrentUrl() {
@@ -73,7 +78,7 @@
   function addEventListeners() {
     // watch path changes
     let currentLocation = document.location.href;
-    const observer = new MutationObserver((_mutationList) => {
+    observer = new MutationObserver((_mutationList) => {
       if (isUrlMatch(document.location, currentLocation)) {
         currentLocation = document.location.href;
         setCurrentUrl();
@@ -86,11 +91,21 @@
   }
 
   function removeEventListeners() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
     window.removeEventListener("popstate", setCurrentUrl);
+    if (_rootEl) {
+      _rootEl.removeEventListener(
+        "sidemenugroup:mounted",
+        handleSideMenuGroupMount,
+      );
+    }
   }
 </script>
 
-<div bind:this={_rootEl} class="side-menu">
+<div bind:this={_rootEl} class="side-menu" data-testid={testid}>
   <slot />
 </div>
 

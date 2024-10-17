@@ -1,7 +1,4 @@
 // Components
-
-import "@abgov/web-components";
-
 export * from "./lib/accordion/accordion";
 export * from "./lib/app-header/app-header";
 export * from "./lib/app-header-menu/app-header-menu";
@@ -20,6 +17,7 @@ export * from "./lib/details/details";
 export * from "./lib/divider/divider";
 export * from "./lib/dropdown/dropdown";
 export * from "./lib/dropdown/dropdown-item";
+export * from "./lib/fieldset/fieldset";
 export * from "./lib/file-upload-card/file-upload-card";
 export * from "./lib/file-upload-input/file-upload-input";
 export * from "./lib/footer/footer";
@@ -34,6 +32,8 @@ export * from "./lib/hero-banner/hero-banner-actions";
 export * from "./lib/icon-button/icon-button";
 export * from "./lib/icon/icon";
 export * from "./lib/input/input";
+export * from "./lib/link/link";
+export * from "./lib/link-button/link-button";
 export * from "./lib/microsite-header/microsite-header";
 export * from "./lib/modal/modal";
 export * from "./lib/notification/notification";
@@ -53,6 +53,7 @@ export * from "./lib/table/table";
 export * from "./lib/table/table-sort-header";
 export * from "./lib/tabs/tabs";
 export * from "./lib/tab/tab";
+export * from "./lib/text/text";
 export * from "./lib/textarea/textarea";
 export * from "./lib/three-column-layout/three-column-layout";
 export * from "./lib/tooltip/tooltip";

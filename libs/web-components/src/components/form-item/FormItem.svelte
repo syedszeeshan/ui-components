@@ -11,7 +11,16 @@
   import { onMount } from "svelte";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
-  import { generateRandomId, typeValidator } from "../../common/utils";
+  import { receive, relay, generateRandomId, typeValidator } from "../../common/utils";
+  import {
+    FieldsetErrorRelayDetail,
+    FieldsetResetErrorsMsg,
+    FieldsetSetErrorMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+    FormItemMountMsg,
+    FormItemMountRelayDetail,
+  } from "../../types/relay-types";
 
   // Validators
   const [REQUIREMENT_TYPES, validateRequirementType] = typeValidator(
@@ -28,8 +37,6 @@
   type RequirementType = (typeof REQUIREMENT_TYPES)[number];
   type LabelSizeType = (typeof LABEL_SIZE_TYPES)[number];
 
-  export let testid: string = "";
-
   // margin
   export let mt: Spacing = null;
   export let mr: Spacing = null;
@@ -37,6 +44,7 @@
   export let ml: Spacing = null;
 
   // Optional
+  export let testid: string = "";
   export let label: string = "";
   export let labelsize: LabelSizeType = "regular";
   export let helptext: string = "";
@@ -54,7 +62,22 @@
   onMount(() => {
     validateRequirementType(requirement);
     validateLabelSize(labelsize);
+    bindElement();
 
+    receive(_rootEl, (action, data) => {
+      // console.log(`  RECEIVE(FormItem => ${action}):`, data);
+      switch (action) {
+        case FormFieldMountMsg:
+          onInputMount(data as FormFieldMountRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          onSetError(data as FieldsetErrorRelayDetail);
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "";
+          break;
+      }
+    });
     _rootEl?.addEventListener("input:mounted", handleInputMounted);
     _rootEl?.addEventListener("errorChange", handleErrorChange);
   });
@@ -104,6 +127,32 @@
     } else {
       //inputEl.removeAttribute("aria-describedby");
       inputEl.setAttribute("aria-describedby", "");
+    }
+  }
+
+  function onSetError(d: FieldsetErrorRelayDetail) {
+    error = (d as Record<string, string>)["error"];
+  }
+
+  // Allows binding to Fieldset components
+  function bindElement() {
+    relay<FormItemMountRelayDetail>(
+      _rootEl,
+      FormItemMountMsg,
+      { id, label, el: _rootEl },
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
+  function onInputMount(props: FormFieldMountRelayDetail) {
+    const { el } = props;
+
+    // Check if aria-label is present and has a value in the child element
+    //const ariaLabel = el.getAttribute("aria-label");
+    const ariaLabel = ce.detail.el.getAttribute("aria-label");
+    if (!ariaLabel || ariaLabel.trim() === "") {
+      //el.setAttribute("aria-label", label);
+      ce.detail.el.setAttribute("aria-label", label);
     }
   }
 </script>

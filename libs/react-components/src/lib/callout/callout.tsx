@@ -8,12 +8,15 @@ export type GoACalloutType =
   | "emergency";
 
 export type GoACalloutSize = "medium" | "large";
+export type GoACalloutAriaLive = "off" | "polite" | "assertive";
 
 interface WCProps extends Margins {
   heading?: string;
   type?: GoACalloutType;
   size?: GoACalloutSize;
   maxwidth?: string;
+  arialive?: GoACalloutAriaLive;
+  testid?: string;
 }
 
 declare global {
@@ -31,6 +34,7 @@ export interface GoACalloutProps extends Margins {
   size?: GoACalloutSize;
   maxWidth?: string;
   testId?: string;
+  ariaLive?: GoACalloutAriaLive;
   children?: React.ReactNode;
 }
 
@@ -42,6 +46,7 @@ export const GoACallout = ({
   size = "large",
   maxWidth,
   testId,
+  ariaLive = "off",
   children,
   mt,
   mr,
@@ -54,15 +59,16 @@ export const GoACallout = ({
       type={type}
       size={size}
       maxwidth={maxWidth}
+      arialive={ariaLive}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-callout>
   );
-}
+};
 
 export default GoACallout;
