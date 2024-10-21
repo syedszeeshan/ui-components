@@ -5,7 +5,13 @@
 </script>
 
 <script lang="ts">
-  import { typeValidator, toBoolean, relay, receive, dispatch } from "../../common/utils";
+  import {
+    typeValidator,
+    toBoolean,
+    relay,
+    receive,
+    dispatch,
+  } from "../../common/utils";
   import type { GoAIconType } from "../icon/Icon.svelte";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
@@ -98,13 +104,12 @@
     if (isError !== prevError) {
       //dispatch("errorChange", { isError });
       _rootEl?.dispatchEvent(
-      new CustomEvent("errorChange", {
-        bubbles: true,
-        composed: true,
-        detail: { isError },
-      }),
-    );
-
+        new CustomEvent("errorChange", {
+          bubbles: true,
+          composed: true,
+          detail: { isError },
+        }),
+      );
       prevError = isError;
     }
   }
@@ -147,19 +152,6 @@
       );
     }, 10);
   });
-
-  onMount(async () => {
-    await tick();
-
-    validateType(type);
-    validateAutoCapitalize(autocapitalize);
-    addRelayListener();
-
-    showDeprecationWarnings();
-    checkSlots();
-    sendMountedMessage();
-  });
-
   // =========
   // Functions
   // =========
@@ -185,7 +177,12 @@
 
   function onSetValue(detail: FormSetValueRelayDetail) {
     value = detail.value;
-    dispatch(inputEl, "_change", { name, value: detail.value }, { bubbles: true });
+    dispatch(
+      inputEl,
+      "_change",
+      { name, value: detail.value },
+      { bubbles: true },
+    );
   }
 
   function sendMountedMessage() {
@@ -236,6 +233,14 @@
         detail: { name, value: input.value },
       }),
     );
+
+    // Dispatch event for screen reader to announce
+    _rootEl.dispatchEvent(
+      new CustomEvent("announce-helper-text", {
+        composed: true,
+        bubbles: true,
+      }),
+    );
   }
 
   function onBlur(e: Event) {
@@ -251,7 +256,9 @@
 
   function doClick() {
     // @ts-ignore
-    this.dispatchEvent(new CustomEvent("_trailingIconClick", { composed: true }));
+    this.dispatchEvent(
+      new CustomEvent("_trailingIconClick", { composed: true }),
+    );
   }
 
   function checkSlots() {
@@ -289,8 +296,6 @@
   //     }),
   //   );
   // }
-
-
 </script>
 
 <!-- HTML -->
@@ -318,7 +323,11 @@
     </div>
 
     {#if leadingicon}
-      <goa-icon class="leading-icon" data-testid="leading-icon" type={leadingicon} />
+      <goa-icon
+        class="leading-icon"
+        data-testid="leading-icon"
+        type={leadingicon}
+      />
     {/if}
 
     <input
@@ -425,7 +434,8 @@
   }
   .goa-input:not(.leading-content):not(.trailing-content):hover {
     border-color: var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 var(--goa-border-width-m) var(--goa-color-interactive-hover);
+    box-shadow: 0 0 0 var(--goa-border-width-m)
+      var(--goa-color-interactive-hover);
   }
 
   /* type=range does not have an outline/box-shadow */
@@ -570,19 +580,22 @@
   .error .input-trailing-content,
   .error .input-trailing-content:hover {
     outline: var(--goa-border-width-s) solid var(--goa-color-interactive-error);
-    box-shadow: inset 0 0 0 var(--goa-border-width-m) var(--goa-color-interactive-error);
+    box-shadow: inset 0 0 0 var(--goa-border-width-m)
+      var(--goa-color-interactive-error);
   }
   .error .input-leading-content:focus,
   .error .input-trailing-content:focus,
   .error .input-leading-content:active,
   .error .input-trailing-content:active {
     outline: var(--goa-border-width-s) solid var(--goa-color-interactive-error);
-    box-shadow: 0 0 0 var(--goa-border-width-l) var(--goa-color-interactive-focus);
+    box-shadow: 0 0 0 var(--goa-border-width-l)
+      var(--goa-color-interactive-focus);
   }
 
   .input-leading-content:hover,
   .input-trailing-content:hover {
-    box-shadow: inset 0 0 0 var(--goa-border-width-m) var(--goa-color-interactive-hover);
+    box-shadow: inset 0 0 0 var(--goa-border-width-m)
+      var(--goa-color-interactive-hover);
     outline: var(--goa-border-width-s) solid var(--goa-color-interactive-hover);
   }
   .input-leading-content:active,
@@ -591,7 +604,8 @@
   .input-trailing-content:active,
   .input-trailing-content:focus,
   .input-trailing-content:focus-within {
-    box-shadow: 0 0 0 var(--goa-border-width-l) var(--goa-color-interactive-focus);
+    box-shadow: 0 0 0 var(--goa-border-width-l)
+      var(--goa-color-interactive-focus);
     outline: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
   }
 

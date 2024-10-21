@@ -11,7 +11,12 @@
   import { onMount } from "svelte";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
-  import { receive, relay, generateRandomId, typeValidator } from "../../common/utils";
+  import {
+    receive,
+    relay,
+    generateRandomId,
+    typeValidator,
+  } from "../../common/utils";
   import {
     FieldsetErrorRelayDetail,
     FieldsetResetErrorsMsg,
@@ -58,6 +63,7 @@
   let errorId = `error-${generateRandomId()}`;
   let helpTextId = `helptext-${generateRandomId()}`;
   let hasError = false;
+  let announcer: HTMLElement;
 
   onMount(() => {
     validateRequirementType(requirement);
@@ -80,6 +86,7 @@
     });
     _rootEl?.addEventListener("input:mounted", handleInputMounted);
     _rootEl?.addEventListener("errorChange", handleErrorChange);
+    _rootEl?.addEventListener("announce-helper-text", handleAnnounceHelperText);
   });
 
   function handleInputMounted(e: Event) {
@@ -113,6 +120,35 @@
       hasError = ce.detail.isError;
       updateAriaDescribedBy();
     }
+  }
+
+  function handleAnnounceHelperText() {
+    if (hasError) {
+      //Check with Chris/Vanessa/Ken if both error and helptext are required here
+      announceOnFocus(helptext);
+      announceOnFocus(error);
+    } else if (helptext) {
+      announceOnFocus(helptext);
+    }
+  }
+
+  function announceOnFocus(text: string) {
+    // Create the announcer element on-demand
+    const announcer = document.createElement("div");
+    announcer.className = "sr-only";
+    announcer.setAttribute("aria-live", "polite");
+    announcer.setAttribute("aria-atomic", "true");
+    document.body.appendChild(announcer);
+
+    // Set the announcement text
+    setTimeout(() => {
+      announcer.textContent = text;
+    }, 100);
+
+    // Remove the announcer after the announcement
+    setTimeout(() => {
+      document.body.removeChild(announcer);
+    }, 3000);
   }
 
   function updateAriaDescribedBy() {
@@ -167,6 +203,7 @@
   bind:this={_rootEl}
 >
   {#if label}
+    <!-- svelte-ignore a11y-label-has-associated-control -->
     <label class={`label ${labelsize}`}>
       {label}
       {#if requirement && REQUIREMENT_TYPES.includes(requirement)}
@@ -245,5 +282,17 @@
 
   .error-msg + .help-msg {
     margin-top: var(--goa-space-xs);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 </style>
