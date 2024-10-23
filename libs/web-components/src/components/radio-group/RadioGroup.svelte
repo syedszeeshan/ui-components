@@ -209,6 +209,15 @@
   //     }),
   //   );
   // }
+  function onFocus(e: Event) {
+    // Dispatch event for screen reader to announce
+    _rootEl.dispatchEvent(
+      new CustomEvent("announce-helper-text", {
+        composed: true,
+        bubbles: true,
+      }),
+    );
+  }
 </script>
 
 <!-- Html -->
@@ -220,6 +229,8 @@
   role="radiogroup"
   aria-label={arialabel}
   aria-invalid={isError ? "true" : "false"}
+  tabindex="0"
+  on:focusin={onFocus}
 >
   <slot />
 </div>
@@ -229,6 +240,7 @@
     box-sizing: border-box;
     font-family: var(--goa-font-family-sans);
   }
+
   .goa-radio-group--horizontal {
     display: flex;
     flex-direction: row;
@@ -237,4 +249,23 @@
   .goa-radio-group--vertical {
     display: inline-block;
   }
+
+  /* Focus styles */
+  .goa-radio-group--horizontal:focus,
+  .goa-radio-group--vertical:focus {
+    /* outline: 2px solid transparent; */
+    outline: none;
+  }
+
+  /* Show focus indicator only for keyboard navigation */
+  /* .goa-radio-group--horizontal:focus-visible,
+  .goa-radio-group--vertical:focus-visible {
+    outline: 2px solid var(--goa-color-interactive-focus);
+    outline-offset: 2px;
+  } */
+
+  /* .goa-radio-group--horizontal:focus:not(:focus-visible),
+  .goa-radio-group--vertical:focus:not(:focus-visible) {
+    outline: none;
+  } */
 </style>

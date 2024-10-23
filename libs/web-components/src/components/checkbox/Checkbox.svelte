@@ -44,7 +44,6 @@
 
   // Private
   let _value: string;
-  //let _checkboxEl: HTMLElement;
   let _checkboxRef: HTMLElement;
   let _descriptionId: string;
   let _rootEl: HTMLElement;
@@ -57,7 +56,7 @@
     isError = toBoolean(error);
     if (isError !== prevError) {
       //dispatch("errorChange", { isError });
-      //TODO: use disaptch from the utils 
+      //TODO: use disaptch from the utils
       _rootEl?.dispatchEvent(
         new CustomEvent("errorChange", {
           bubbles: true,
@@ -150,6 +149,25 @@
   //     }),
   //   );
   // }
+
+  function onFocus() {
+    _rootEl?.dispatchEvent(
+      new CustomEvent("announce-helper-text", {
+        composed: true,
+        bubbles: true,
+      }),
+    );
+  }
+
+  // function onBlur() {
+  //   _rootEl?.dispatchEvent(
+  //     new CustomEvent("_blur", {
+  //       composed: true,
+  //       bubbles: true,
+  //       detail: { name },
+  //     }),
+  //   );
+  // }
 </script>
 
 <!-- View -->
@@ -181,6 +199,7 @@
         aria-describedby={description ? _descriptionId : null}
         aria-invalid={isError ? "true" : "false"}
         on:change={onChange}
+        on:focus={onFocus}
       />
       {#if isIndeterminate}
         <svg
@@ -295,14 +314,17 @@
     box-shadow: inset 0 0 0 var(--goa-border-width-m)
       var(--goa-color-interactive-hover);
   }
+
   .container svg {
     fill: var(--goa-color-greyscale-white);
     margin: 3px;
   }
+
   .container.selected {
     background-color: var(--goa-color-interactive-default);
     border: none;
   }
+
   .container.selected:hover {
     background-color: var(--goa-color-interactive-hover);
   }
@@ -344,4 +366,17 @@
     border: var(--goa-border-width-s) solid var(--goa-color-interactive-error);
     box-shadow: inset 0 0 0 1px var(--goa-color-interactive-error);
   }
+
+  /* Focus styles */
+  /* input[type="checkbox"]:focus-visible + .container,
+  input[type="checkbox"]:focus-visible + .container.selected {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  } */
+
+  /* Remove outline when not keyboard focusing */
+  /* input[type="checkbox"]:focus:not(:focus-visible) + .container {
+    outline: none;
+    box-shadow: none;
+  } */
 </style>

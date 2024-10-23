@@ -161,6 +161,23 @@
   //     }),
   //   );
   // }
+  function onFocus(e: Event) {
+    const input = e.target as HTMLInputElement;
+    // input.dispatchEvent(
+    //   new CustomEvent("_focus", {
+    //     composed: true,
+    //     detail: { name, value: input.value },
+    //   }),
+    // );
+
+    // Dispatch event for screen reader to announce
+    _rootEl.dispatchEvent(
+      new CustomEvent("announce-helper-text", {
+        composed: true,
+        bubbles: true,
+      }),
+    );
+  }
 </script>
 
 <!-- HTML -->
@@ -190,6 +207,7 @@
       bind:value
       on:keyup={onKeyPress}
       on:change={onChange}
+      on:focus={onFocus}
     />
 
     {#if maxcount > 0 && !isDisabled}
