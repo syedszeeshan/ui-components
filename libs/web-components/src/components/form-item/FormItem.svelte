@@ -108,12 +108,6 @@
     updateAriaDescribedBy();
   }
 
-  // function handleErrorChange(e: Event) {
-  //   const ce = e as CustomEvent<{isError: boolean}>;
-  //   hasError = ce.detail.isError;
-  //   updateAriaDescribedBy();
-  // }
-
   function handleErrorChange(e: Event) {
     const ce = e as CustomEvent<{ isError: boolean }>;
     if (hasError !== ce.detail.isError) {
@@ -124,7 +118,6 @@
 
   function handleAnnounceHelperText() {
     if (hasError) {
-      //Check with Chris/Vanessa/Ken if both error and helptext are required here
       announceOnFocus(helptext);
       announceOnFocus(error);
     } else if (helptext) {
@@ -133,19 +126,16 @@
   }
 
   function announceOnFocus(text: string) {
-    // Create the announcer element on-demand
     const announcer = document.createElement("div");
     announcer.className = "sr-only";
     announcer.setAttribute("aria-live", "polite");
     announcer.setAttribute("aria-atomic", "true");
     document.body.appendChild(announcer);
 
-    // Set the announcement text
     setTimeout(() => {
       announcer.textContent = text;
     }, 100);
 
-    // Remove the announcer after the announcement
     setTimeout(() => {
       document.body.removeChild(announcer);
     }, 3000);
@@ -161,7 +151,6 @@
     if (describedBy.length > 0) {
       inputEl.setAttribute("aria-describedby", describedBy.join(" "));
     } else {
-      //inputEl.removeAttribute("aria-describedby");
       inputEl.setAttribute("aria-describedby", "");
     }
   }
@@ -185,10 +174,8 @@
 
     // Check if aria-label is present and has a value in the child element
     const ariaLabel = el.getAttribute("aria-label");
-    //const ariaLabel = ce.detail.el.getAttribute("aria-label");
     if (!ariaLabel || ariaLabel.trim() === "") {
       el.setAttribute("aria-label", label);
-      //ce.detail.el.setAttribute("aria-label", label);
     }
   }
 </script>
