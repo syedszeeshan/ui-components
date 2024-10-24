@@ -6,9 +6,23 @@
   import type { GoAIconType } from "../icon/Icon.svelte";
   import type { Spacing } from "../../common/styling";
   import type { Option } from "./DropdownItem.svelte";
-  import { dispatch, fromBoolean, receive, relay, toBoolean } from "../../common/utils";
+  import {
+    dispatch,
+    fromBoolean,
+    receive,
+    relay,
+    toBoolean,
+  } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
-  import { FieldsetResetErrorsMsg, FieldsetSetErrorMsg, FormFieldMountMsg, FormFieldMountRelayDetail, FormSetValueMsg, FormSetValueRelayDetail } from "../../types/relay-types";
+  import {
+    FieldsetResetErrorsMsg,
+    FieldsetSetErrorMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+    FormSetValueMsg,
+    FormSetValueRelayDetail,
+  } from "../../types/relay-types";
+  import { FormItemChannelProps } from "../form-item/FormItem.svelte";
 
   interface EventHandler {
     handleKeyUp: (e: KeyboardEvent) => void;
@@ -61,13 +75,15 @@
 
   let _mountStatus: "active" | "ready" = "ready";
   let _mountTimeoutId: any = undefined;
+  let isError = toBoolean(error);
+  let prevError = isError;
 
   //
   // Reactive
   //
 
   $: _disabled = toBoolean(disabled);
-  $: _error = toBoolean(error);
+  //$: _error = toBoolean(error);
   $: _multiselect = toBoolean(multiselect);
   $: _native = toBoolean(native);
   $: _filterable = toBoolean(filterable) && !_native;
@@ -80,6 +96,20 @@
   $: {
     _values = parseValues(value || "");
     setSelected();
+  }
+  $: {
+    isError = toBoolean(error);
+    if (isError !== prevError) {
+      //dispatch("errorChange", { isError });
+      _rootEl?.dispatchEvent(
+        new CustomEvent("errorChange", {
+          bubbles: true,
+          composed: true,
+          detail: { isError },
+        }),
+      );
+      prevError = isError;
+    }
   }
 
   //
@@ -94,6 +124,16 @@
     _eventHandler = _filterable
       ? new ComboboxKeyUpHandler(_inputEl)
       : new DropdownKeyUpHandler(_inputEl);
+
+    setTimeout(() => {
+      _rootEl?.dispatchEvent(
+        new CustomEvent<FormItemChannelProps>("input:mounted", {
+          composed: true,
+          bubbles: true,
+          detail: { el: _inputEl },
+        }),
+      );
+    }, 10);
   });
 
   //
@@ -117,7 +157,7 @@
   }
 
   function onSetValue(detail: FormSetValueRelayDetail) {
-    value = detail.value
+    value = detail.value;
     dispatch(_rootEl, "_change", { name, value }, { bubbles: true });
   }
 
@@ -125,14 +165,13 @@
     relay<FormFieldMountRelayDetail>(
       _rootEl,
       FormFieldMountMsg,
-      { name, el: _rootEl},
+      { name, el: _rootEl },
       { bubbles: true, timeout: 10 },
     );
   }
 
   function getChildren() {
     _rootEl?.addEventListener("dropdown-item:mounted", (e: Event) => {
-
       const detail = (e as CustomEvent<Option>).detail;
 
       if (_mountStatus === "ready") {
@@ -266,7 +305,9 @@
 
   function syncFilteredOptions() {
     _filteredOptions = _filterable
-      ? _options.filter((option) => isFilterMatch(option, _inputEl?.value || ""))
+      ? _options.filter((option) =>
+          isFilterMatch(option, _inputEl?.value || ""),
+        )
       : _options;
   }
 
@@ -352,7 +393,6 @@
       setTimeout(() => {
         hideMenu();
       }, 10);
-
     } else {
       _selectedOption = undefined;
       setDisplayedValue();
@@ -362,13 +402,13 @@
 
   function onInputKeyUp(e: KeyboardEvent) {
     if (_disabled) return;
-    _isDirty = true
+    _isDirty = true;
     _eventHandler.handleKeyUp(e);
   }
 
   function onInputKeyDown(e: KeyboardEvent) {
     if (_disabled) return;
-    _isDirty = true
+    _isDirty = true;
     _eventHandler.handleKeyDown(e);
   }
 
@@ -412,8 +452,27 @@
     e.stopPropagation();
   }
 
+  function onFocus(e: Event) {
+    // if (_filterable) {
+    //   dispatch(
+    //     _rootEl,
+    //     "_focus",
+    //     { name, value: e.target.value },
+    //     { bubbles: true },
+    //   );
+    // }
+
+    // Dispatch event for announcing helper text
+    _rootEl.dispatchEvent(
+      new CustomEvent("announce-helper-text", {
+        composed: true,
+        bubbles: true,
+      }),
+    );
+  }
+
   class ComboboxKeyUpHandler implements EventHandler {
-    constructor(private input: HTMLInputElement) { }
+    constructor(private input: HTMLInputElement) {}
 
     onEscape(_e: KeyboardEvent) {
       reset();
@@ -581,10 +640,11 @@
       {name}
       aria-label={arialabel || name}
       aria-labelledby={arialabelledby}
-      class:error={_error}
+      class:error={isError}
       disabled={_disabled}
       id={name}
       on:change={onNativeSelect}
+      on:focus={onFocus}
     >
       <slot />
       {#each _options as option}
@@ -611,7 +671,7 @@
         slot="target"
         class="dropdown-input-group"
         class:dropdown-input-group--disabled={_disabled}
-        class:error={_error}
+        class:error={isError}
       >
         {#if leadingicon}
           <goa-icon
@@ -648,6 +708,7 @@
           on:keydown={onInputKeyDown}
           on:keyup={onInputKeyUp}
           on:change={onChange}
+          on:focus={onFocus}
         />
 
         {#if _inputEl?.value && _filterable}
@@ -692,6 +753,7 @@
         bind:this={_menuEl}
         aria-label={arialabel || name}
         aria-labelledby={arialabelledby}
+        on:focus={onFocus}
         style={`
             outline: none;
             overflow-y: auto;

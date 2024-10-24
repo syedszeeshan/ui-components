@@ -62,14 +62,7 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      //dispatch("errorChange", { isError });
-      _rootEl?.dispatchEvent(
-        new CustomEvent("errorChange", {
-          bubbles: true,
-          composed: true,
-          detail: { isError },
-        }),
-      );
+      dispatch(_rootEl, "errorChange", { isError }, { bubbles: true });
       prevError = isError;
     }
     bindOptions();
@@ -94,13 +87,11 @@
     });
 
     await tick();
-
-    _rootEl?.dispatchEvent(
-      new CustomEvent<FormItemChannelProps>("input:mounted", {
-        composed: true,
-        bubbles: true,
-        detail: { el: _rootEl },
-      }),
+    dispatch<FormItemChannelProps>(
+      _rootEl,
+      "input:mounted",
+      { el: _rootEl },
+      { bubbles: true },
     );
   });
 
@@ -200,23 +191,8 @@
     });
   }
 
-  // function dispatch(name: string, detail: any) {
-  //   _rootEl?.dispatchEvent(
-  //     new CustomEvent(name, {
-  //       bubbles: true,
-  //       composed: true,
-  //       detail,
-  //     }),
-  //   );
-  // }
   function onFocus(e: Event) {
-    // Dispatch event for screen reader to announce
-    _rootEl.dispatchEvent(
-      new CustomEvent("announce-helper-text", {
-        composed: true,
-        bubbles: true,
-      }),
-    );
+    dispatch(_rootEl, "announce-helper-text", undefined, { bubbles: true });
   }
 </script>
 

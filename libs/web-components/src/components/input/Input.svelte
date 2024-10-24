@@ -102,14 +102,7 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      //dispatch("errorChange", { isError });
-      _rootEl?.dispatchEvent(
-        new CustomEvent("errorChange", {
-          bubbles: true,
-          composed: true,
-          detail: { isError },
-        }),
-      );
+      dispatch(_rootEl, "errorChange", { isError }, { bubbles: true });
       prevError = isError;
     }
   }
@@ -143,12 +136,11 @@
     sendMountedMessage();
 
     setTimeout(() => {
-      _rootEl?.dispatchEvent(
-        new CustomEvent<FormItemChannelProps>("input:mounted", {
-          composed: true,
-          bubbles: true,
-          detail: { el: inputEl },
-        }),
+      dispatch<FormItemChannelProps>(
+        _rootEl,
+        "input:mounted",
+        { el: inputEl },
+        { bubbles: true },
       );
     }, 10);
   });
@@ -234,13 +226,7 @@
       }),
     );
 
-    // Dispatch event for screen reader to announce
-    _rootEl.dispatchEvent(
-      new CustomEvent("announce-helper-text", {
-        composed: true,
-        bubbles: true,
-      }),
-    );
+    dispatch(_rootEl, "announce-helper-text", undefined, { bubbles: true });
   }
 
   function onBlur(e: Event) {
@@ -286,16 +272,6 @@
       );
     }
   }
-
-  // function dispatch(name: string, detail: any) {
-  //   _rootEl?.dispatchEvent(
-  //     new CustomEvent(name, {
-  //       bubbles: true,
-  //       composed: true,
-  //       detail,
-  //     }),
-  //   );
-  // }
 </script>
 
 <!-- HTML -->

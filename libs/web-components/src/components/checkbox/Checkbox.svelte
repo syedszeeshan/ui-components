@@ -55,15 +55,7 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      //dispatch("errorChange", { isError });
-      //TODO: use disaptch from the utils
-      _rootEl?.dispatchEvent(
-        new CustomEvent("errorChange", {
-          bubbles: true,
-          composed: true,
-          detail: { isError },
-        }),
-      );
+      dispatch(_rootEl, "errorChange", { isError }, { bubbles: true });
       prevError = isError;
     }
   }
@@ -72,13 +64,11 @@
 
   onMount(async () => {
     await tick();
-
-    _rootEl?.dispatchEvent(
-      new CustomEvent<FormItemChannelProps>("input:mounted", {
-        composed: true,
-        bubbles: true,
-        detail: { el: _checkboxRef },
-      }),
+    dispatch<FormItemChannelProps>(
+      _rootEl,
+      "input:mounted",
+      { el: _checkboxRef },
+      { bubbles: true },
     );
 
     // hold on to the initial value to prevent losing it on check changes
@@ -140,34 +130,9 @@
     );
   }
 
-  // function dispatchFn(name: string, detail: any) {
-  //   _rootEl?.dispatchEvent(
-  //     new CustomEvent(name, {
-  //       bubbles: true,
-  //       composed: true,
-  //       detail,
-  //     }),
-  //   );
-  // }
-
   function onFocus() {
-    _rootEl?.dispatchEvent(
-      new CustomEvent("announce-helper-text", {
-        composed: true,
-        bubbles: true,
-      }),
-    );
+    dispatch(_rootEl, "announce-helper-text", undefined, { bubbles: true });
   }
-
-  // function onBlur() {
-  //   _rootEl?.dispatchEvent(
-  //     new CustomEvent("_blur", {
-  //       composed: true,
-  //       bubbles: true,
-  //       detail: { name },
-  //     }),
-  //   );
-  // }
 </script>
 
 <!-- View -->
