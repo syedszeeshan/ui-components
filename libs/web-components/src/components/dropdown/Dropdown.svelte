@@ -100,14 +100,7 @@
   $: {
     isError = toBoolean(error);
     if (isError !== prevError) {
-      //dispatch("errorChange", { isError });
-      _rootEl?.dispatchEvent(
-        new CustomEvent("errorChange", {
-          bubbles: true,
-          composed: true,
-          detail: { isError },
-        }),
-      );
+      dispatch(_rootEl, "errorChange", { isError }, { bubbles: true });
       prevError = isError;
     }
   }
@@ -126,12 +119,11 @@
       : new DropdownKeyUpHandler(_inputEl);
 
     setTimeout(() => {
-      _rootEl?.dispatchEvent(
-        new CustomEvent<FormItemChannelProps>("input:mounted", {
-          composed: true,
-          bubbles: true,
-          detail: { el: _inputEl },
-        }),
+      dispatch<FormItemChannelProps>(
+        _rootEl,
+        "input:mounted",
+        { el: _inputEl },
+        { bubbles: true },
       );
     }, 10);
   });
@@ -453,22 +445,7 @@
   }
 
   function onFocus(e: Event) {
-    // if (_filterable) {
-    //   dispatch(
-    //     _rootEl,
-    //     "_focus",
-    //     { name, value: e.target.value },
-    //     { bubbles: true },
-    //   );
-    // }
-
-    // Dispatch event for announcing helper text
-    _rootEl.dispatchEvent(
-      new CustomEvent("announce-helper-text", {
-        composed: true,
-        bubbles: true,
-      }),
-    );
+    dispatch(_rootEl, "announce-helper-text", undefined, { bubbles: true });
   }
 
   class ComboboxKeyUpHandler implements EventHandler {
