@@ -152,23 +152,69 @@
     checkSlots();
     sendMountedMessage();
 
-    if (width.includes("%") || width.includes("px")) {
-      _containerStyle = `width: ${width}; `;
-      _inputWidth = "";
-    } else if (type === "number" && width.includes("ch")) {
-      _inputWidth = `${parseInt(width) + 2}ch`;
-    } else if (width.includes("ch") || width.trim() === "") {
-      _containerStyle = "";
-      _inputWidth = `${parseInt(width) + 1}ch`;
-    } else {
-      _containerStyle = `--width: ${width};`;
-      _inputWidth = "";
-    }
+    const { containerStyle, inputWidth } = handleWidth(width, type);
+    _containerStyle = containerStyle;
+    _inputWidth = inputWidth;
   });
 
   // =========
   // Functions
   // =========
+
+  function handleWidth(width: string, type: Type) {
+    // Handle empty width first
+    if (width.trim() === "") {
+      return {
+        containerStyle: "",
+        inputWidth: `${parseInt("30") + 1}ch`,
+      };
+    }
+
+    const unitPattern = /(px|%|ch|rem|em)$/;
+
+    // If no match, use CSS custom property
+    if (!unitPattern.test(width)) {
+      return {
+        containerStyle: `--width: ${width};`,
+        inputWidth: "",
+      };
+    }
+
+    // If width matches unit pattern
+    if (
+      width.includes("%") ||
+      width.includes("px") ||
+      width.includes("rem") ||
+      width.includes("em")
+    ) {
+      return {
+        containerStyle: `width: ${width}; `,
+        inputWidth: "",
+      };
+    }
+
+    // 'ch' unit handling
+    if (width.includes("ch")) {
+      const chValue = parseInt(width);
+      if (type === "number") {
+        return {
+          containerStyle: "",
+          inputWidth: `${chValue + 2}ch`,
+        };
+      } else {
+        return {
+          containerStyle: "",
+          inputWidth: `${chValue + 1}ch`,
+        };
+      }
+    }
+
+    // Fallback (should not reach here)
+    return {
+      containerStyle: "",
+      inputWidth: "",
+    };
+  }
 
   function addRelayListener() {
     receive(_inputEl, (action, data) => {

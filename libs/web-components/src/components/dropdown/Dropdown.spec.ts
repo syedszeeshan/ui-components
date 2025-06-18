@@ -1202,4 +1202,153 @@ describe("GoADropdown", () => {
       });
     });
   });
+
+  describe("Tests for width", () => {
+    it("rem width applied correctly", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "20rem",
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 20rem");
+      });
+    });
+
+    it("em width applied correctly", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "20em",
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 20em");
+      });
+    });
+
+    it("px width applied correctly", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "300px",
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 300px");
+      });
+    });
+
+    it("% width applied correctly", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "75%",
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 75%");
+      });
+    });
+
+    it("ch width applied correctly", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "25ch",
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 25ch");
+      });
+    });
+
+    it("width without unit defaults to px", async () => {
+      const result = render(GoADropdownWrapper, {
+        name,
+        items: ["1", "2", "3"],
+        width: "400", // no unit
+      });
+
+      await waitFor(() => {
+        const dropdown = result.container.querySelector(".dropdown");
+        expect(dropdown?.getAttribute("style")).toContain("--width: 400px");
+      });
+    });
+
+    it("fractional rem values work correctly", async () => {
+      const testCases = ["12.5rem", "18.75rem", "2.25rem", "0.5rem"];
+
+      for (const width of testCases) {
+        const result = render(GoADropdownWrapper, {
+          name,
+          items: ["1", "2", "3"],
+          width,
+        });
+
+        await waitFor(() => {
+          const dropdown = result.container.querySelector(".dropdown");
+          expect(dropdown?.getAttribute("style")).toContain(
+            `--width: ${width}`,
+          );
+        });
+
+        cleanup();
+      }
+    });
+
+    it("fractional em values work correctly", async () => {
+      const testCases = ["10.5em", "15.25em", "3.75em", "0.8em"];
+
+      for (const width of testCases) {
+        const result = render(GoADropdownWrapper, {
+          name,
+          items: ["1", "2", "3"],
+          width,
+        });
+
+        await waitFor(() => {
+          const dropdown = result.container.querySelector(".dropdown");
+          expect(dropdown?.getAttribute("style")).toContain(
+            `--width: ${width}`,
+          );
+        });
+
+        cleanup();
+      }
+    });
+
+    it("mixed width units work independently", async () => {
+      const units = [
+        { width: "200px", type: "pixels" },
+        { width: "15rem", type: "rem" },
+        { width: "20em", type: "em" },
+        { width: "50%", type: "percentage" },
+        { width: "30ch", type: "characters" },
+      ];
+
+      for (const { width, type } of units) {
+        const result = render(GoADropdownWrapper, {
+          name,
+          items: ["test"],
+          width,
+        });
+
+        await waitFor(() => {
+          const dropdown = result.container.querySelector(".dropdown");
+          expect(dropdown?.getAttribute("style")).toContain(
+            `--width: ${width}`,
+          );
+        });
+
+        cleanup();
+      }
+    });
+  });
 });
