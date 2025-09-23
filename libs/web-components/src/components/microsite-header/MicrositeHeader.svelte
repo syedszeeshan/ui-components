@@ -2,8 +2,9 @@
 
 <!-- Script -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { typeValidator } from "../../common/utils";
+  import { toBoolean } from "../../common/utils";
 
   // Validator
   const [Types, validateType] = typeValidator(
@@ -20,12 +21,18 @@
   export let maxcontentwidth = "100%";
   export let headerurltarget: UrlTargetType = "blank";
   export let feedbackurltarget: UrlTargetType = "blank";
+  export let hasfeedbackhandler: string = "false";
+  export let testid: string = "";
 
   // Validator
   const [UrlTarget, validateUrlTargetType] = typeValidator(
     "URL target values",
     ["self", "blank"],
   );
+
+  $: _hasfeedbackhandler = toBoolean(hasfeedbackhandler);
+
+  let _feedbackElement: HTMLElement;
 
   // Types
   type UrlTargetType = (typeof UrlTarget)[number];
@@ -35,7 +42,17 @@
     return val[0].toUpperCase() + val.slice(1);
   }
 
-  onMount(() => {
+  function handleFeedbackClick(event: MouseEvent) {
+    if (_hasfeedbackhandler == true) {
+      event.preventDefault();
+
+      _feedbackElement.dispatchEvent(
+        new CustomEvent("_feedbackClick", { composed: true, bubbles: true }),
+      );
+    }
+  }
+
+  onMount(async () => {
     setTimeout(() => validateType(type), 1);
     validateUrlTargetType(headerurltarget);
     validateUrlTargetType(feedbackurltarget);
@@ -43,7 +60,7 @@
 </script>
 
 <!-- HTML -->
-<div id="container">
+<div id="container" data-testid={testid}>
   <div
     class="content-container"
     style={`--max-content-width: ${maxcontentwidth}`}
@@ -54,6 +71,20 @@
           href="https://www.alberta.ca/index.aspx"
           target={`_${headerurltarget}`}>Alberta Government</a
         >
+        {#if feedbackurl}
+          <span data-testid="feedback">
+            — help us improve it by giving
+            <span class="feedback-link">
+              <a href={feedbackurl} target={`_${feedbackurltarget}`}>feedback</a>
+            </span>
+          </span>
+        {:else if _hasfeedbackhandler}
+          <span data-testid="feedback-click" bind:this={_feedbackElement}>
+            — help us improve it by giving
+            <!-- svelte-ignore a11y-invalid-attribute -->
+            <a href="#" on:click={handleFeedbackClick}>feedback</a>
+          </span>
+        {/if}
       </div>
     {/if}
 
@@ -70,20 +101,29 @@
           target={`_${headerurltarget}`}>Alberta Government</a
         >
         service
+
         {#if feedbackurl}
-          <span data-testid="feedback"
-            >— help us improve it by giving <a
-              href={feedbackurl}
-              target={`_${feedbackurltarget}`}>feedback</a
-            ></span
-          >
+          <span data-testid="feedback">
+            — help us improve it by giving
+            <span class="feedback-link">
+              <a href={feedbackurl} target={`_${feedbackurltarget}`}>feedback</a>
+            </span>
+          </span>
+        {:else if _hasfeedbackhandler}
+          <span data-testid="feedback-click" bind:this={_feedbackElement}>
+            — help us improve it by giving
+            <!-- svelte-ignore a11y-invalid-attribute -->
+            <a href="#" on:click={handleFeedbackClick}>feedback</a>
+          </span>
         {/if}
       </div>
     {/if}
     <div class="spacer" />
-    {#if version}
+    {#if $$slots.version || version}
       <div data-testid="version" class="version">
-        {version}
+        <slot name="version">
+          {version}
+        </slot>
       </div>
     {/if}
   </div>
@@ -96,25 +136,25 @@
     font-family: var(--goa-font-family-sans);
   }
 
+  .feedback-link {
+    display: inline-flex; /* Keeps the text and icon together when text wraps */
+}
+
   #container {
-    container: self / inline-size;
-    background-color: var(--goa-color-greyscale-100);
+    background-color: var(--goa-microsite-header-color-bg);
   }
 
   a {
-    color: var(--goa-color-interactive-default);
+    color: var(--goa-microsite-header-color-links);
     cursor: pointer;
   }
 
   a:hover {
-    color: var(--goa-color-interactive-hover);
+    color: var(--goa-microsite-header-color-links-hover);
   }
 
   a:focus {
-    outline-width: thin;
-    outline-style: solid;
-    outline-color: var(--goa-color-interactive-hover);
-    outline-offset: 0px;
+    outline: var(--goa-microsite-header-link-focus-border);
   }
 
   a[target="_blank"]::after {
@@ -135,10 +175,8 @@
   }
 
   .content-container {
-
-    font-size: var(--goa-font-size-2);
-    padding: 0.5rem 1rem;
-
+    font: var(--goa-microsite-header-typography);
+    padding: var(--goa-microsite-header-padding-small-screen);
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -146,16 +184,15 @@
     margin: 0 auto;
   }
 
-  @container self (--not-mobile) {
+  @media (min-width: 624px) {
     .content-container {
-      align-items: center;
-      padding: 0.25rem 2rem;
+      padding: var(--goa-microsite-header-padding-medium-screen);
     }
   }
 
-  @container self (--desktop) {
+  @media (min-width: 1024px) {
     .content-container {
-      padding: 0.25rem 4.5rem;
+      padding: var(--goa-microsite-header-padding-large-screen);
     }
   }
 
@@ -164,31 +201,36 @@
   }
 
   .version {
-    color: var(--goa-color-text-secondary);
-    padding-left: 1rem;
-    line-height: 1.25rem;
+    color: var(--goa-microsite-header-color-version-number);
+    margin-left: var(--goa-microsite-header-gap);
+    font-size: var(--goa-microsite-header-typography-version-number);
+  }
+
+  :global(::slotted([slot="version"])) {
+    display: flex;
+    align-items: center;
   }
 
   .service-type {
     font-weight: bold;
-    padding: 0.125rem 0.25rem;
+    padding: 0px 3px 3px 3px; /* vertical allignment */
     display: flex;
-    margin-right: 1rem;
     line-height: initial;
+    margin-right: var(--goa-microsite-header-gap);
   }
 
   .service-type--alpha {
-    background-color: var(--goa-color-warning-default);
-    color: var(--goa-color-text-default);
+    background-color: var(--goa-microsite-header-alpha-badge-color);
+    color: var(--goa-microsite-header-alpha-badge-color-text);
   }
 
   .service-type--beta {
-    background-color: var(--goa-color-brand-default);
-    color: var(--goa-color-text-light);
+    background-color: var(--goa-microsite-header-beta-badge-color);
+    color: var(--goa-microsite-header-beta-badge-color-text);
   }
 
   .site-text {
-    color: var(--goa-color-text-default);
-    line-height: 1.25rem;
+    font: var(--goa-microsite-header-typography);
+    margin-bottom: 4px; /* vertical allignment */
   }
 </style>

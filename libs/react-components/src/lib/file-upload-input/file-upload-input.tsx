@@ -1,18 +1,20 @@
+import {
+  GoabFileUploadInputOnSelectFileDetail,
+  GoabFileUploadInputVariant,
+} from "@abgov/ui-components-common";
 import { useEffect, useRef } from "react";
 
-export type GoAFileUploadInputVariant = "dragdrop" | "button";
-
 interface WCProps {
-  ref: React.MutableRefObject<HTMLElement | null>;
-  variant?: GoAFileUploadInputVariant;
+  ref: React.RefObject<HTMLElement | null>;
+  variant?: GoabFileUploadInputVariant;
   accept?: string;
   maxfilesize?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-file-upload-input": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -20,19 +22,21 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAFileUploadInputProps {
-  variant?: GoAFileUploadInputVariant;
+export interface GoabFileUploadInputProps {
+  variant?: GoabFileUploadInputVariant;
   accept?: string;
   maxFileSize?: string;
-  onSelectFile: (file: File) => void;
+  testId?: string;
+  onSelectFile: (detail: GoabFileUploadInputOnSelectFileDetail) => void;
 }
 
-export function GoAFileUploadInput({
+export function GoabFileUploadInput({
   variant,
   accept,
   maxFileSize,
+  testId,
   onSelectFile,
-}: GoAFileUploadInputProps) {
+}: GoabFileUploadInputProps) {
   const el = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -40,7 +44,8 @@ export function GoAFileUploadInput({
 
     const current = el.current;
     const handler = (e: Event) => {
-      onSelectFile((e as CustomEvent).detail.file);
+      const detail = (e as CustomEvent<GoabFileUploadInputOnSelectFileDetail>).detail;
+      onSelectFile(detail);
     };
     current.addEventListener("_selectFile", handler);
     return () => {
@@ -54,8 +59,9 @@ export function GoAFileUploadInput({
       variant={variant}
       accept={accept}
       maxfilesize={maxFileSize}
+      testid={testId}
     />
   );
 }
 
-export default GoAFileUploadInput;
+export default GoabFileUploadInput;

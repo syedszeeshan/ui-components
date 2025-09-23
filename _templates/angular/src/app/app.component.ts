@@ -1,10 +1,11 @@
-import { Component } from "@angular/core";
+import {Component, OnInit} from "@angular/core";
 
 @Component({
-  selector: "abgov-root",
-  templateUrl: "./app.component.html",
-  styles: ``,
+  selector: "goab-root",
+  template: "<abgov-component-wrapper></abgov-component-wrapper>"
 })
-export class AppComponent {
-  title = "angular";
+export class AppComponent implements OnInit {
+  ngOnInit() {
+    console.log("Hello from Angular");
+  }
 }

@@ -1,23 +1,22 @@
-import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
-
-export type GoAContainerType =
-  | "interactive"
-  | "non-interactive"
-  | "info"
-  | "error"
-  | "success"
-  | "important";
-export type GoAContainerAccent = "thick" | "thin" | "filled";
-export type GoAContainerPadding = "relaxed" | "compact";
+import {
+  GoabContainerAccent,
+  GoabContainerPadding,
+  GoabContainerType,
+  GoabContainerWidth,
+  Margins,
+} from "@abgov/ui-components-common";
+import { ReactNode, type JSX } from "react";
 
 interface WCProps extends Margins {
-  type?: GoAContainerType;
-  accent?: GoAContainerAccent;
-  padding?: GoAContainerPadding;
+  type?: GoabContainerType;
+  accent?: GoabContainerAccent;
+  padding?: GoabContainerPadding;
+  width?: GoabContainerWidth;
+  maxwidth?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -26,18 +25,20 @@ declare global {
   }
 }
 
-export interface GoAContainerProps extends Margins {
-  accent?: GoAContainerAccent;
-  type?: GoAContainerType;
+export interface GoabContainerProps extends Margins {
+  accent?: GoabContainerAccent;
+  type?: GoabContainerType;
   heading?: ReactNode;
   title?: ReactNode;
-  padding?: GoAContainerPadding;
+  padding?: GoabContainerPadding;
   actions?: ReactNode;
   children?: ReactNode;
+  width?: GoabContainerWidth;
+  maxWidth?: string;
   testId?: string;
 }
 
-export function GoAContainer({
+export function GoabContainer({
   accent,
   heading,
   title,
@@ -45,23 +46,27 @@ export function GoAContainer({
   children,
   actions,
   type,
+  width,
+  maxWidth,
   mt,
   mr,
   mb,
   ml,
   testId,
-}: GoAContainerProps): JSX.Element {
+}: GoabContainerProps): JSX.Element {
   const headingContent = heading || title;
   return (
     <goa-container
       type={type}
       padding={padding}
       accent={accent}
+      width={width}
+      maxwidth={maxWidth}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     >
       {headingContent && <div slot="title">{headingContent}</div>}
       {children}
@@ -70,4 +75,4 @@ export function GoAContainer({
   );
 }
 
-export default GoAContainer;
+export default GoabContainer;

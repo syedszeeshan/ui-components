@@ -1,14 +1,13 @@
-import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
+import { Margins } from "@abgov/ui-components-common";
+import { ReactNode, type JSX } from "react";
 
 interface WCProps extends Margins {
   current?: number;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-pages": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -16,12 +15,12 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAPagesProps extends Margins {
+export interface GoabPagesProps extends Margins {
   current?: number;
   children?: ReactNode;
 }
 
-export function GoAPages(props: GoAPagesProps): JSX.Element {
+export function GoabPages(props: GoabPagesProps): JSX.Element {
   return (
     <goa-pages
       current={props.current}
@@ -35,4 +34,4 @@ export function GoAPages(props: GoAPagesProps): JSX.Element {
   );
 }
 
-export default GoAPages;
+export default GoabPages;

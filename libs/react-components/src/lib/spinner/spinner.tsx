@@ -1,14 +1,16 @@
-export type SpinnerType = "infinite" | "progress";
-export type SpinnerSize = "small" | "medium" | "large" | "xlarge";
+import { GoabSpinnerSize, GoabSpinnerType } from "@abgov/ui-components-common";
+
+import type { JSX } from "react";
 
 interface WCProps {
-  size: SpinnerSize;
-  type: SpinnerType;
-  invert?: boolean;
+  size: GoabSpinnerSize;
+  type: GoabSpinnerType;
+  invert?: string;
   progress?: number;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -17,32 +19,32 @@ declare global {
   }
 }
 
-export interface GoASpinnerProps {
-  type: SpinnerType;
-  size: SpinnerSize;
+export interface GoabSpinnerProps {
+  type: GoabSpinnerType;
+  size: GoabSpinnerSize;
   invert?: boolean;
   progress?: number;
   testId?: string;
 }
 
-export type SpinnerProps = GoASpinnerProps;
+export type SpinnerProps = GoabSpinnerProps;
 
-export function GoASpinner({
+export function GoabSpinner({
   type,
   size,
   progress,
   invert,
   testId,
-}: GoASpinnerProps): JSX.Element {
+}: GoabSpinnerProps): JSX.Element {
   return (
     <goa-spinner
       type={type}
       size={size}
       progress={progress}
-      invert={invert}
-      data-testid={testId}
+      invert={invert ? "true" : undefined}
+      testid={testId}
     />
   );
 }
 
-export default GoASpinner;
+export default GoabSpinner;

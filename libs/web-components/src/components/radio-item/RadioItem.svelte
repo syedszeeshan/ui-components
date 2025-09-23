@@ -1,125 +1,354 @@
-<svelte:options customElement="goa-radio-item"/>
+<svelte:options
+  customElement={{
+    tag: "goa-radio-item",
+    props: {
+      value: { reflect: true },
+      description: { reflect: true },
+      checked: { reflect: true },
+      arialabel: { reflect: true },
+      error: { reflect: true },
+      revealarialabel: { reflect: true },
+    },
+  }}
+/>
+
+<script lang="ts" context="module">
+  export type GoARadioItemProps = {
+    el: HTMLElement;
+    value: string;
+    label: string;
+    description: string;
+    disabled: boolean;
+    error: boolean;
+    name: string;
+    checked: boolean;
+    ariaLabel: string;
+    maxWidth: string;
+    revealAriaLabel?: string;
+  };
+
+  export type RadioItemSelectProps = {
+    checked: boolean;
+  };
+</script>
 
 <script lang="ts">
-  import {toBoolean} from "../../common/utils";
+  import { onMount } from "svelte";
+  import {
+    dispatch,
+    fromBoolean,
+    receive,
+    relay,
+    toBoolean,
+    announceToScreenReader,
+  } from "../../common/utils";
+  import { calculateMargin } from "../../common/styling";
+  import type { Spacing } from "../../common/styling";
+  import {
+    FieldsetResetFieldsMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+  } from "../../types/relay-types";
 
   export let value: string;
-  export let label: string;
+  export let name: string = "";
+  export let label: string = "";
   export let description: string = "";
   export let disabled: string = "false";
   export let error: string = "false";
-  export let name: string;
   export let checked: string = "false";
-  export let arialabel: string;
-  export let ariadescribedby: string;
+  export let arialabel: string = "";
+  export let revealarialabel: string = ""; // screen reader will announce this when reveal slot is displayed
+  export let maxwidth: string = "none";
+
+  // margin
+  export let mt: Spacing = null;
+  export let mr: Spacing = null;
+  export let mb: Spacing = null;
+  export let ml: Spacing = null;
+
+  // private
 
   let _radioItemEl: HTMLElement;
+  let _revealSlotEl: HTMLElement;
+  let _formFields: HTMLElement[] = [];
+  let _revealSlotHeight: number = 0;
 
   // Reactive
+
   $: isDisabled = toBoolean(disabled);
   $: isError = toBoolean(error);
   $: isChecked = toBoolean(checked);
+  $: revealSlotHasContent = _revealSlotHeight > 0;
+
+  // Hooks
+
+  onMount(() => {
+    dispatchInit();
+    addInitListener();
+    addSelectListener();
+    addRelayListener();
+    addRevealSlotListener();
+  });
+
+  // Functions
+
+  function addRelayListener() {
+    receive(_radioItemEl, (action, data) => {
+      switch (action) {
+        case FormFieldMountMsg:
+          onFormFieldMount(data as FormFieldMountRelayDetail);
+          break;
+      }
+    });
+  }
+
+  // allow for the listening of messages sent by form-fields specific to the "reveal" slot
+  function addRevealSlotListener() {
+    receive(_revealSlotEl, (action, data) => {
+      switch (action) {
+        case FormFieldMountMsg:
+          setCheckStatusByChildState(data as FormFieldMountRelayDetail);
+          break;
+      }
+    });
+    if (_revealSlotEl) {
+      onRevealSlotCustomEventListener();
+    }
+  }
+
+  /**
+   * Stop propagate the _click,_change to checkbox (so it won't toggle the value)
+   */
+  function onRevealSlotCustomEventListener() {
+    _revealSlotEl.addEventListener("_click", (e: Event) => {
+      // when we click a button/accordion... inside the reveal slot, it will reset the parent radio's value (event UI shows as checked). stopPropagation (_click) will fix it
+      e.stopPropagation();
+    });
+    _revealSlotEl.addEventListener("_change", handleFormFieldChange);
+    _revealSlotEl.addEventListener("_radioItemChange", handleFormFieldChange);
+  }
+
+  function handleFormFieldChange(e: Event) {
+    const customEvent = e as CustomEvent;
+    const eventDetail = customEvent.detail;
+    // when we check/change a checkbox/input... inside the reveal slot, it will reset the parent radio's value(though UI shown as checked) whenever _change is fired. stopPropagation (_change) will fix it
+    e.stopPropagation();
+
+    // If this is a form field value change (public form)
+    // relay it so the Fieldset initialize the reveal slot form field to public form state
+    if (
+      eventDetail &&
+      eventDetail.name &&
+      typeof eventDetail.value !== "undefined"
+    ) {
+      dispatch(_radioItemEl, "_revealChange", eventDetail, { bubbles: true });
+    }
+  }
+
+  function onFormFieldMount(detail: FormFieldMountRelayDetail) {
+    if (!detail.name) return;
+    if (!$$slots.reveal) return;
+    _formFields = [..._formFields, detail.el];
+  }
+
+  function setCheckStatusByChildState(detail: FormFieldMountRelayDetail) {
+    setTimeout(() => {
+      // @ts-expect-error
+      checked = !checked && !!detail.el.value;
+    }, 1000);
+  }
+
+  function dispatchInit() {
+    setTimeout(() => {
+      _radioItemEl?.dispatchEvent(
+        new CustomEvent<GoARadioItemProps>("radio-item:mounted", {
+          composed: true,
+          bubbles: true,
+          detail: {
+            el: _radioItemEl,
+            name,
+            value,
+            label,
+            description,
+            disabled: isDisabled,
+            error: isError,
+            checked: isChecked,
+            ariaLabel: arialabel,
+            maxWidth: maxwidth,
+            revealAriaLabel: revealarialabel,
+          },
+        }),
+      );
+    }, 10);
+  }
+
+  function addInitListener() {
+    _radioItemEl.addEventListener("radio-group:init", (e: Event) => {
+      const data = (e as CustomEvent<GoARadioItemProps>).detail;
+      isDisabled = data.disabled;
+      error = fromBoolean(data.error);
+      checked = fromBoolean(data.checked);
+      description = data.description;
+      name = data.name;
+      revealarialabel = data.revealAriaLabel;
+    });
+  }
+
+  function addSelectListener() {
+    _radioItemEl.addEventListener("radio-group:select", (e: Event) => {
+      isChecked = (e as CustomEvent<RadioItemSelectProps>).detail.checked;
+    });
+  }
 
   function onChange() {
     if (isDisabled) return;
-    if (isChecked) return;
+    // if (isChecked) return;  FIXME: does having this uncommented break something?
 
-    const event = new CustomEvent('_click', {
-      detail: value,
-      composed: true,
-      bubbles: true
-    });
-    _radioItemEl.dispatchEvent(event);
+    dispatch(
+      _radioItemEl,
+      "_radioItemChange",
+      { value, label },
+      { bubbles: true },
+    );
+
+    // Announce the reveal content change to screen readers if radio is checked and reveal content exists
+    if (
+      $$slots.reveal &&
+      isChecked &&
+      revealarialabel &&
+      revealarialabel !== ""
+    ) {
+      announceToScreenReader(revealarialabel);
+    }
+
+    if (!isChecked && !!$$slots.reveal) {
+      resetChildFormFields();
+    }
+  }
+
+  function resetChildFormFields() {
+    for (const el of _formFields) {
+      // send reset message ot child form fields
+      relay(el, FieldsetResetFieldsMsg);
+    }
   }
 </script>
 
-<div class="goa-radio-container">
+<div
+  bind:this={_radioItemEl}
+  style={`
+    ${calculateMargin(mt, mr, mb, ml)}
+    max-width: ${maxwidth};
+  `}
+  data-testid="root"
+  class="container"
+>
   <label
-    bind:this={_radioItemEl}
-    data-testid="radio-option-{value}"
-    class="goa-radio"
-    class:goa-radio--disabled={isDisabled}
-    class:goa-radio--error={isError}
+    class="radio"
+    class:radio--disabled={isDisabled}
+    class:radio--error={isError}
   >
     <input
       type="radio"
       {name}
-      value={value}
+      {value}
+      data-testid="radio-option-{value}"
       disabled={isDisabled}
       checked={isChecked}
       aria-label={arialabel}
-      aria-describedby={ariadescribedby}
+      aria-describedby={$$slots.description || description
+        ? `${name}-${value}-description`
+        : undefined}
+      aria-checked={isChecked}
       on:click={onChange}
     />
-    <div class="goa-radio-icon"/>
-    <span class="goa-radio-label">
-          {label || value}
-        </span>
+    <div class="icon" />
+    <span class="label">
+      {label || value}
+    </span>
   </label>
   {#if $$slots.description || description}
-    <div class="goa-radio-description">
-      <slot name="description"/>
+    <div class="description" id={`${name}-${value}-description`}>
+      <slot name="description" />
       {description}
     </div>
   {/if}
+  <div
+    class="reveal"
+    class:visible={$$slots.reveal && isChecked}
+    class:has-content={revealSlotHasContent}
+    bind:this={_revealSlotEl}
+    bind:clientHeight={_revealSlotHeight}
+  >
+    <slot name="reveal" />
+  </div>
 </div>
 
 <style>
-  label.goa-radio {
-    --goa-radio-outline-width: 3px;
-    --goa-radio-diameter: 1.5rem;
-    --goa-radio-border-width: 1px;
-    --goa-radio-border-width--checked: 7px;
+  .radio {
+    display: inline-flex;
+  }
+
+  label.radio {
     box-sizing: border-box;
+    display: inline-flex;
+  }
+
+  .container {
     display: flex;
+    flex-direction: column;
   }
 
-  .goa-radio-container {
-    padding-bottom: 1rem;
-  }
-
-  .goa-radio:hover {
+  .radio:hover {
     cursor: pointer;
   }
 
-  .goa-radio *,
-  .goa-radio *:before,
-  .goa-radio *:after {
+  .radio *,
+  .radio *:before,
+  .radio *:after {
     box-sizing: border-box;
   }
 
-  .goa-radio input[type="radio"] {
+  .radio input[type="radio"] {
     width: 0;
-    height: 0;
+    min-height: 28px;
     margin: 0;
     opacity: 0;
   }
 
-  .goa-radio-label {
+  .label {
     padding: 0 var(--goa-space-xs);
-    font-weight: var(--goa-font-weight-regular);
+    font: var(--goa-radio-label);
   }
 
-  .goa-radio-group--horizontal .goa-radio-label {
-    padding-right: var(--goa-space-xl);
-  }
-
-  .goa-radio-label {
-    padding-right: var(--goa-space-xl);
-  }
-
-  .goa-radio-description {
-    font: var(--goa-typography-body-xs);
+  .description {
+    font: var(--goa-radio-description);
     margin-left: var(--goa-space-xl);
     margin-top: var(--goa-space-2xs);
+    color: var(--goa-color-text-default);
   }
 
-  .goa-radio-icon {
+  .reveal {
+    display: none;
+    height: 0;
+  }
+  .reveal.visible {
+    height: fit-content;
+    display: block;
+  }
+  .reveal.visible.has-content {
+    padding: var(--goa-space-m);
+    margin: var(--goa-space-2xs) 0 0 calc(var(--goa-space-s) - 2px);
+    border-left: 4px solid var(--goa-color-greyscale-200);
+  }
+
+  .icon {
     display: inline-block;
-    height: var(--goa-radio-diameter);
-    width: var(--goa-radio-diameter);
-    border-radius: 50%;
-    background-color: #fff;
+    height: var(--goa-radio-size);
+    width: var(--goa-radio-size);
+    border-radius: var(--goa-radio-border-radius);
+    background-color: var(--goa-radio-color-bg);
     transition: box-shadow 100ms ease-in-out;
 
     /* prevent squishing of radio button */
@@ -127,88 +356,84 @@
     margin-top: var(--font-valign-fix);
   }
 
-  /* What is this? */
-  .goa-radio:focus > input:not(:disabled) ~ .goa-radio-icon {
-    box-shadow: 0 0 0 var(--goa-radio-outline-width) var(--goa-color-interactive-focus);
+  .radio--disabled .label,
+  .radio--disabled ~ .description {
+    color: var(--goa-radio-label-color-disabled);
   }
-
-  .goa-radio--disabled .goa-radio-label {
-    opacity: 0.4;
-  }
-
-  .goa-radio--disabled:hover {
+  .radio--disabled:hover {
     cursor: default;
   }
 
-  /* States */
+  /* States --------------------------------------------- */
 
-  /* Default */
-  input[type="radio"]:not(:checked) ~ .goa-radio-icon {
-    border: var(--goa-radio-border-width) solid var(--goa-color-greyscale-700);
+  /* Unchecked */
+  input[type="radio"]:not(:checked) ~ .icon {
+    border: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
+    margin-top: 3px;
   }
-
-  /* Default:hover */
-  input[type="radio"]:hover ~ .goa-radio-icon {
-    border: 1px solid var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 1px var(--goa-color-interactive-hover);
+  /* Unchecked:hover */
+  input[type="radio"]:hover ~ .icon {
+    border: var(--goa-radio-border-hover);
   }
-
-  /* Checked:hover */
-  input[type="radio"]:checked:hover ~ .goa-radio-icon {
-    border: 7px solid var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 1px var(--goa-color-interactive-hover);
+  /* Unchecked:focus */
+  input[type="radio"]:focus-visible ~ .icon,
+  input[type="radio"]:hover:focus-visible ~ .icon {
+    outline: var(--goa-radio-border-focus);
   }
-
-  /* Default:focus */
-  input[type="radio"]:focus ~ .goa-radio-icon,
-  input[type="radio"]:hover:active ~ .goa-radio-icon,
-  input[type="radio"]:hover:focus ~ .goa-radio-icon,
-  input[type="radio"]:active ~ .goa-radio-icon {
-    box-shadow: 0 0 0 var(--goa-radio-outline-width) var(--goa-color-interactive-focus);
+  /* Unchecked:hover+focus */
+  input[type="radio"]:hover:focus-visible ~ .icon {
+    border: var(--goa-radio-border);
   }
 
   /* Checked */
-  input[type="radio"]:checked ~ .goa-radio-icon {
-    border: var(--goa-radio-border-width--checked) solid var(--goa-color-interactive-default);
+  input[type="radio"]:checked ~ .icon {
+    border: var(--goa-radio-border-checked);
+    margin-top: 3px;
+  }
+  /* Checked:hover */
+  input[type="radio"]:checked:hover ~ .icon {
+    border: var(--goa-radio-border-checked-hover);
+  }
+  /* Checked:hover+focus */
+  input[type="radio"]:checked:hover:focus-visible ~ .icon {
+    border: var(--goa-radio-border-checked);
   }
 
   /* Disabled */
-  input[type="radio"]:disabled ~ .goa-radio-icon,
-  input[type="radio"]:disabled:focus ~ .goa-radio-icon,
-  input[type="radio"]:disabled:active ~ .goa-radio-icon {
-    border: var(--goa-radio-border-width) solid var(--goa-color-greyscale-700);
-    box-shadow: none;
-    opacity: 40%;
+  input[type="radio"]:disabled ~ .icon,
+  input[type="radio"]:disabled:focus-visible ~ .icon {
+    border: var(--goa-radio-border-disabled);
   }
-
-  /* Disabled and checked */
-  input[type="radio"]:disabled:checked ~ .goa-radio-icon,
-  input[type="radio"]:disabled:checked:focus ~ .goa-radio-icon,
-  input[type="radio"]:disabled:checked:active ~ .goa-radio-icon {
-    border: var(--goa-radio-border-width--checked) solid var(--goa-color-interactive-hover);
-    box-shadow: none;
+  input[type="radio"]:disabled:checked ~ .icon,
+  input[type="radio"]:disabled:checked:focus-visible ~ .icon {
+    border: var(--goa-radio-border-checked-disabled);
   }
 
   /* Error */
-  .goa-radio--error input[type="radio"]:checked ~ .goa-radio-icon,
-  .goa-radio--error input[type="radio"]:disabled:checked ~ .goa-radio-icon {
-    border: 7px solid var(--goa-color-emergency-default);
+  .radio--error input[type="radio"] ~ .icon {
+    border: var(--goa-radio-border-error);
   }
-
-  .goa-radio--error input[type="radio"]:hover ~ .goa-radio-icon {
-    box-shadow: 0 0 0 1px var(--goa-color-emergency-default);
+  .radio--error input[type="radio"]:hover ~ .icon {
+    border: var(--goa-radio-border-error-hover);
   }
-
-  .goa-radio--error input[type="radio"]:hover:active ~ .goa-radio-icon,
-  .goa-radio--error input[type="radio"]:hover:focus ~ .goa-radio-icon {
-    box-shadow: 0 0 0 var(--goa-radio-outline-width) var(--goa-color-interactive-focus);
+  .radio--error input[type="radio"]:hover:focus-visible ~ .icon {
+    outline: var(--goa-radio-border-focus);
+    border: var(--goa-radio-border-error);
   }
-
-  .goa-radio--error input[type="radio"]:disabled:hover ~ .goa-radio-icon {
-    box-shadow: none;
+  .radio--error input[type="radio"]:checked ~ .icon {
+    border: var(--goa-radio-border-checked-error);
   }
-
-  .goa-radio--error input[type="radio"]:not(:checked) ~ .goa-radio-icon {
-    border: 2px solid var(--goa-color-emergency-default);
+  .radio--error input[type="radio"]:checked:hover ~ .icon {
+    border: var(--goa-radio-border-checked-error-hover);
+  }
+  .radio--error input[type="radio"]:checked:hover:focus-visible ~ .icon {
+    outline: var(--goa-radio-border-focus);
+    border: var(--goa-radio-border-checked-error);
+  }
+  .radio--error input[type="radio"]:disabled ~ .icon {
+    border: var(--goa-radio-border-error-disabled);
+  }
+  .radio--error input[type="radio"]:disabled:checked ~ .icon {
+    border: var(--goa-radio-border-checked-error-disabled);
   }
 </style>

@@ -28,6 +28,7 @@
   export let value: string = "";
   export let min: string = "";
   export let max: string = "";
+  export let testid: string = "";
 
   // margin
   export let mt: Spacing = null;
@@ -54,21 +55,55 @@
   let _nextMonthDays: Date[] = [];
   let _nextMonthDayCount: number;
   let _months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
+    "January",
+    "February",
+    "March",
+    "April",
     "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
   let _years: string[] = [];
   let _calendarEl: HTMLElement;
+
+  $: {
+    if (value) {
+      const newDate = startOfDay(new Date(value));
+
+      if (isValidDate(newDate)) {
+        renderCalendar({ type: "date", value: _selectedDate || newDate });
+        _selectedDate = newDate;
+        _calendarDate = newDate;
+      }
+    }
+  }
+
+  $: {
+    _min = min ? startOfDay(new Date(min)) : addYears(new Date(), -5);
+    _max = max ? startOfDay(new Date(max)) : addYears(new Date(), 5);
+
+    // Update years list based on new min/max
+    const yearStart = _min.getFullYear();
+    const yearCount = _max.getFullYear() - yearStart + 1;
+    _years = Array.from({ length: yearCount }, (_, i) => `${yearStart + i}`);
+
+    // Adjust calendar if it's outside the new min/max range
+    if (_calendarDate) {
+      if (startOfDay(_calendarDate) < _min) {
+        _calendarDate = new Date(_min);
+      } else if (startOfDay(_calendarDate) > _max) {
+        _calendarDate = new Date(_max);
+      }
+    }
+
+    // Re-render with updated values
+    renderCalendar({ type: "date", value: _calendarDate || new Date() });
+  }
 
   // *****
   // Hooks
@@ -78,19 +113,8 @@
     _calendarDate = _selectedDate = value
       ? startOfDay(new Date(value))
       : startOfDay(new Date());
-    _min = (min && new Date(min)) || addYears(_selectedDate, -5);
-    _max = (max && new Date(max)) || addYears(_selectedDate, 5);
-
-    // define year range to show in dropdown
-    const yearCount = _max.getFullYear() - _min.getFullYear() + 1;
-    let yearStart = _min.getFullYear();
-    _years = new Array(yearCount)
-      .fill(undefined)
-      .map((_, i) => `${yearStart + i}`)
-      .sort();
 
     initKeybindings();
-
     await tick();
     renderCalendar({ type: "date", value: _selectedDate });
   });
@@ -161,7 +185,10 @@
       e.preventDefault();
 
       // prevent selection outsite min/max boundies
-      if (newDate < _min || newDate > _max) {
+      if (
+        isBefore(startOfDay(newDate), _min) ||
+        isAfter(startOfDay(newDate), _max)
+      ) {
         return;
       }
 
@@ -273,7 +300,10 @@
 
     const newDate = new Date(raw);
 
-    if (newDate < _min || newDate > _max) {
+    if (
+      isBefore(startOfDay(newDate), _min) ||
+      isAfter(startOfDay(newDate), _max)
+    ) {
       return;
     }
 
@@ -290,6 +320,8 @@
 <div
   style={calculateMargin(mt, mr, mb, ml)}
   class:bordered={bordered === "true"}
+  data-testid={testid}
+  tabindex="-1"
 >
   <goa-block mb="m">
     <goa-form-item label="Month" mt="0">
@@ -297,8 +329,8 @@
         name="month"
         arialabel={`${name} month`}
         data-testid="months"
-        width="calc(314px / 2 - 1.5rem)"
-        relative="true"
+        width="160px"
+        maxheight="240px"
         value={_calendarDate?.getMonth()}
         on:_change={setMonth}
       >
@@ -313,8 +345,8 @@
         name="year"
         arialabel={`${name} year`}
         data-testid="years"
-        width="calc(314px / 2 - 1.5rem)"
-        relative="true"
+        width="104px"
+        maxheight="240px"
         value={_calendarDate?.getFullYear()}
         on:_change={setYear}
       >
@@ -340,7 +372,8 @@
         data-date={format(d, "T")}
         data-day={format(d, "eee")}
         class="day other-month"
-        class:disabled={isBefore(d, _min) || isAfter(d, _max)}
+        class:disabled={isBefore(startOfDay(d), _min) ||
+          isAfter(startOfDay(d), _max)}
         tabindex={isSameDay(d, _calendarDate) ? 0 : -1}
       >
         <div class="day-num" data-testid="date">{d.getDate()}</div>
@@ -354,8 +387,9 @@
         data-day={format(d, "eee")}
         class="day"
         class:today={isSameDay(d, new Date())}
-        class:selected={value && isSameDay(d, _selectedDate)}
-        class:disabled={isBefore(d, _min) || isAfter(d, _max)}
+        class:selected={value && _selectedDate && isSameDay(d, _selectedDate)}
+        class:disabled={isBefore(startOfDay(d), _min) ||
+          isAfter(startOfDay(d), _max)}
         tabindex={isSameDay(d, _calendarDate) ? 0 : -1}
       >
         <div class="day-num" data-testid="date">{d.getDate()}</div>
@@ -368,7 +402,8 @@
         data-date={format(d, "T")}
         data-day={format(d, "eee")}
         class="day other-month"
-        class:disabled={isBefore(d, _min) || isAfter(d, _max)}
+        class:disabled={isBefore(startOfDay(d), _min) ||
+          isAfter(startOfDay(d), _max)}
         tabindex={isSameDay(d, _calendarDate) ? 0 : -1}
       >
         <div class="day-num" data-testid="date">{d.getDate()}</div>
@@ -378,14 +413,10 @@
 </div>
 
 <style>
-  :host {
-    font: var(--goa-typography-body-s);
-  }
-
   .bordered {
     display: inline-block;
     border: 1px solid var(--goa-color-greyscale-700);
-    border-radius: var(--goa-border-radius-m);
+    border-radius: var(--goa-date-input-calendar-border-radius);
     padding: 1rem;
   }
 
@@ -393,92 +424,92 @@
     display: grid;
     justify-items: center;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px 0;
-    width: 280px;
-    font: var(--goa-typography-body-s);
+    gap: 0px;
+    width: var(--goa-date-input-calendar-width);
+    font: var(--goa-date-input-day-font);
   }
 
+  /* Days of Week */
   h5 {
-    margin: 0;
-    font: var(--goa-typography-heading-xs);
+    margin: var(--goa-date-input-day-of-week-margin);
+    font: var(--goa-date-input-day-of-week-font);
   }
 
+  /* Days in Calendar */
   .day {
     align-items: center;
-    background: var(--goa-color-white);
+    background-color: var(--goa-date-input-day-color-bg);
     border: none;
-    border-radius: var(--goa-border-radius-m);
-    color: var(--goa-color-greyscale-black);
+    border-radius: var(--goa-date-input-day-border-radius);
+    color: var(--goa-date-input-day-color-text);
     display: inline-flex;
-    font: var(--goa-typography-body-s);
-    height: 2.5rem;
+    font: var(--goa-date-input-day-font);
     justify-content: center;
     margin: 0;
-    width: 2.5rem;
+    width: var(--goa-date-input-day-size);
+    height: var(--goa-date-input-day-size);
   }
-
   .day.other-month {
-    color: var(--goa-color-greyscale-400);
+    color: var(--goa-date-input-day-color-text-other-month);
   }
-
   .day.today {
-    font-weight: var(--goa-font-weight-bold);
+    font: var(--goa-date-input-day-font-today);
   }
-
   .day:focus-within {
-    outline: var(--goa-border-width-l) solid var(--goa-color-interactive-focus);
+    outline: var(--goa-date-input-day-border-focus);
+    z-index: 1000;
+    background-color: none;
   }
-
-  .day.selected {
-    background: var(--goa-color-interactive-default);
-    color: var(--goa-color-greyscale-white);
-  }
-
   .day:hover {
-    background: var(--goa-color-greyscale-200);
-    color: var(--goa-color-greyscale-black);
+    background-color: var(--goa-date-input-day-color-bg-hover);
+    color: var(--goa-date-input-day-color-text-hover);
     cursor: pointer;
   }
-
+  .day:focus-within:hover {
+    background-color: transparent;
+  }
+  .day.selected {
+    background-color: var(--goa-date-input-day-color-bg-selected);
+    color: var(--goa-date-input-day-color-text-selected);
+  }
   .day.selected:hover {
-    background: var(--goa-color-interactive-hover);
-    text-decoration-color: var(--goa-color-white);
-    color: var(--goa-color-greyscale-white);
+    background-color: var(--goa-date-input-day-color-bg-selected-hover);
+    color: var(--goa-date-input-day-color-text-selected-hover);
   }
-
+  .day.selected:focus-within:hover {
+    background-color: var(--goa-date-input-day-color-bg-selected);
+  }
   .day.today.selected:hover {
-    background: var(--goa-color-interactive-hover);
-    text-decoration-color: var(--goa-color-white);
-    color: var(--goa-color-greyscale-white);
+    background-color: var(--goa-date-input-day-color-bg-selected-hover);
+    color: var(--goa-date-input-day-color-text-selected-hover);
   }
-
+  .day.today.selected:focus-within:hover {
+    background-color: var(--goa-date-input-day-color-bg-selected);
+  }
   .day.disabled {
-    color: var(--goa-color-greyscale-400);
+    color: var(--goa-date-input-day-color-text-disabled);
     cursor: default;
   }
-
   .day.disabled:hover {
-    background: var(--goa-color-white);
+    background-color: transparent;
   }
 
   .day-num {
-    width: 100%;
-    margin: 0 6px;
+    width: var(--goa-date-input-day-underline-today-width);
     pointer-events: none;
-    padding-bottom: 2px;
+    margin-bottom: 1px; /* vertically centers the day numbers */
   }
-
   .selected .day-num {
+    width: var(--goa-date-input-day-underline-today-width);
     border-bottom: none;
-    padding-bottom: 0;
-    width: 1.5rem;
   }
 
+  /* Today */
   .today .day-num {
-    border-bottom: 3px solid var(--goa-color-interactive-default);
+    padding-top: 2px; /* vertically centers the day number when it has selected underline */
+    border-bottom: var(--goa-date-input-day-underline-today);
   }
-
   .today.selected .day-num {
-    border-bottom: 3px solid var(--goa-color-greyscale-white);
+    border-bottom: var(--goa-date-input-day-underline-today-selected);
   }
 </style>

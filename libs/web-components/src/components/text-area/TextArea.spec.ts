@@ -9,7 +9,9 @@ describe("GoATextArea", () => {
       placeholder: "Enter text here",
       value: "foobar",
       rows: 42,
+      readonly: "true",
       disabled: "true",
+      autocomplete: "off",
       testid: "test-id",
     });
 
@@ -17,9 +19,11 @@ describe("GoATextArea", () => {
     expect(el).toHaveAttribute("name", "name");
     expect(el).toHaveAttribute("placeholder", "Enter text here");
     expect(el.value).toBe("foobar");
+    expect(el).toHaveAttribute("readonly", "");
     expect(el).toHaveAttribute("disabled", "");
     expect(el).toHaveAttribute("data-testid", "test-id");
     expect(el).toHaveAttribute("rows", "42");
+    expect(el).toHaveAttribute("autocomplete", "off");
   });
 
   it("handles the change event", async () => {
@@ -72,7 +76,20 @@ describe("GoATextArea", () => {
       expect(onKeyPress).toBeCalledTimes(1);
       expect(onChange).toBeCalledTimes(1);
     });
+  });
 
+  it("can be readonly", async () => {
+    const result = render(GoATextArea, {
+      name: "name",
+      value: "foo",
+      readonly: "true",
+    });
+
+    const el = result.container.querySelector("textarea");
+
+    el?.focus();
+    expect(el).toHaveAttribute("readonly", "");
+    expect(el).toHaveFocus();
   });
 
   it("can be disabled", async () => {
@@ -89,6 +106,7 @@ describe("GoATextArea", () => {
     await fireEvent.keyUp(el, { target: { value: "bar" } });
     expect(el).toHaveAttribute("disabled", "");
     expect(onChange).not.toBeCalled();
+    expect(el).not.toHaveFocus();
   });
 
   it("indicates an error state", async () => {
@@ -166,6 +184,17 @@ describe("GoATextArea", () => {
       expect(counterEl.innerHTML).toContain("7 characters too many");
     });
 
+    it("shows zero characters remaining", async () => {
+      const { container } = render(GoATextArea, {
+        name: "test-name",
+        value: "Jim is super funny",
+        countby: "character",
+        maxcount: "18",
+      });
+      const counterEl = container.querySelector(".counter");
+      expect(counterEl.innerHTML).toContain("0 characters remaining");
+    });
+
     it("shows the number of words remaining", async () => {
       const { container } = render(GoATextArea, {
         name: "test-name",
@@ -186,6 +215,17 @@ describe("GoATextArea", () => {
       });
       const counterEl = container.querySelector(".counter");
       expect(counterEl.innerHTML).toContain("1 word too many");
+    });
+
+    it("shows zero words remaining", async () => {
+      const { container } = render(GoATextArea, {
+        name: "test-name",
+        value: "Jim is super funny",
+        countby: "word",
+        maxcount: "4",
+      });
+      const counterEl = container.querySelector(".counter");
+      expect(counterEl.innerHTML).toContain("0 words remaining");
     });
 
     it("shows the count in an error state when the char count exceeds the max value allowed", async () => {

@@ -3,9 +3,10 @@ import { ReactNode } from "react";
 interface WCProps {
   maxcolumncount?: number;
   heading?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -15,29 +16,29 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAFooterNavSectionProps {
+export interface GoabFooterNavSectionProps {
   maxColumnCount?: number;
   heading?: string;
   testId?: string;
   children?: ReactNode;
 }
 
-export function GoAAppFooterNavSection({
+export function GoabAppFooterNavSection({
   heading,
   maxColumnCount = 1,
   testId,
   children,
-}: GoAFooterNavSectionProps) {
+}: GoabFooterNavSectionProps) {
   return (
     <goa-app-footer-nav-section
       slot="nav"
       heading={heading}
       maxcolumncount={maxColumnCount}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-app-footer-nav-section>
   );
 }
 
-export default GoAAppFooterNavSection;
+export default GoabAppFooterNavSection;

@@ -1,8 +1,9 @@
+import type { JSX } from "react";
 interface WCProps {
   heading?: React.ReactNode;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -11,14 +12,12 @@ declare global {
   }
 }
 
-export interface GoATabItemProps {
+export interface GoabTabItemProps {
   heading?: React.ReactNode;
   children?: React.ReactNode;
 }
 
-export type TabItemProps = GoATabItemProps;
-
-export function GoATab({ heading, children }: GoATabItemProps): JSX.Element {
+export function GoabTab({ heading, children }: GoabTabItemProps): JSX.Element {
   return (
     <goa-tab>
       {heading && <span slot="heading">{heading}</span>}

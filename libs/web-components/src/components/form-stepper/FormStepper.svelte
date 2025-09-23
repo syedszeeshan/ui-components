@@ -4,13 +4,17 @@
   import { calculateMargin } from "../../common/styling";
   import type { Spacing } from "../../common/styling";
   import { onDestroy, onMount, tick } from "svelte";
-  import { MOBILE_BP } from "../../common/breakpoints"
+  import { MOBILE_BP } from "../../common/breakpoints";
+
+  import type { FormStep, FormStepStatus } from "../form-step/FormStep.svelte";
 
   // ======
   // Public
   // ======
 
-  export let step: number = -1;  // this is a 1-based index, -1 is the unset value
+  // this is a 1-based index, -1 is the unset value
+  export let step: number = -1;
+  export let testid: string = "";
   export let mt: Spacing = null;
   export let mr: Spacing = null;
   export let mb: Spacing = null;
@@ -20,134 +24,239 @@
   // Private
   // =======
 
-  let _rootEl: HTMLElement;    // events bound to it
-  let _gridEl: HTMLElement;    // used to obtain component dimensions
-  let _steps: Element[] = [];  // step DOM elements to allow for width calculations
-  let _stepWidth: number;      // calculated x distance (px) between each step point
-  let _stepHeight: number;     // calculated y distance (px) between each step point
-  let _progressHeight: number; // allow css calculations for mobile view
+  // events bound to it
+  let _rootEl: HTMLElement;
 
-  let _maxAllowedStep: number = 1;  // prevent users from using the stepper to access future steps
-  let _maxProgressStep: number = 1; // controls the progress bars value
+  // used to obtain component dimensions
+  let _gridEl: HTMLElement;
 
-  let _showProgressBars = false;  // delays the showing of the progress bars to prevent it from
-                                  // being temporarily visible with an unwanted offset
+
+  // collection of references to the child goa-form-step web components
+  let _steps: { el: HTMLElement, status: FormStepStatus}[] = [];
+
+  // calculated x distance (px) between each step point
+  let _stepWidth: number;
+
+  // calculated y distance (px) between each step point
+  let _stepHeight: number;
+
+  let _stepType: "free" | "constrained" | undefined;
+
+  // allow css calculations for mobile view
+  let _progressHeight: number;
+
+  // current max progress
+  let _progress: number = 0;
+
+  // 1-based index that holds on the the previous step when the step changes
+  let _currentStep: number;
+
+  // prevent users from using the stepper to access future steps
+  let _maxAllowedStep: number = 1;
+
+  // delays the showing of the progress bars to prevent it from being temporarily
+  // visible with an unwanted offset
+  let _showProgressBars = false;
+
+  // setTimeout id to allow only one of the child `mounted` events to call on the
+  // parent setup steps
+  let _bindTimeoutId: any;
 
   // ========
   // Reactive
   // ========
 
-  // handles the 1-based step value and the number of line segments is one less
-  // than the number of steps
-  $: _progress = ((_maxProgressStep - 1) / (_steps.length - 1)) * 100;
-  $: setCurrentStepStatus(step);
-  $: if (_steps.length) {
-    // allow access to all steps if not step property is provided
-    if (step <= 0) {
-      step = 1;
-      setTimeout(() => {
-        dispatch(step);
-      }, 1);
-      _maxAllowedStep = _steps.length;
-    }
+  // allow access to all steps if not step property is provided
+  $: _maxAllowedStep = Math.max(_currentStep || 1, _maxAllowedStep || 1);
 
-    if (step > _maxProgressStep) _maxProgressStep = step;
-    if (step > _maxAllowedStep) _maxAllowedStep = step;
-    _steps.forEach((stepEl: Element, index: number) => {
-      stepEl.setAttribute(
-        "enabled",
-        index > _maxAllowedStep - 1 ? "false" : "true",
-      );
-    });
+  // update components when step changed externally
+  $: if (step > 0 && _currentStep !== step) {
+    changeStep(step);
   }
 
+  // update progress on step changes
+  $: if (_currentStep) {
+    calculateProgress();
+  }
+
+  $: step = +step;
+
+  let resizeObserver: ResizeObserver;
+
+  // =====
+  // Hooks
+  // =====
+
   onMount(async () => {
-    await tick();
+    await tick();  // needed to ensure Angular's delay, when rendering within a route, doesn't break things
 
-    // children steps
-    const slot = _rootEl.querySelector("slot") as HTMLSlotElement;
-    if (slot) {
-      _steps = slot.assignedElements();
-    } else {
-      // for unit tests only
-      // @ts-expect-error testing
-      _steps = [..._rootEl.querySelector("goa-grid").children] as Element[];
-    }
+    _stepType = +step === -1 ? "free" : "constrained";
 
-    // set step a11y label
-    _steps.forEach((_step: Element, index: number) => {
-      const s = _step as HTMLElement;
-      s.setAttribute("arialabel", `Step ${index + 1} of ${_steps.length}`);
-      s.setAttribute("childindex", `${index + 1}`);
-    });
+    getChildren();
 
-    // handle click events from progress items
-    _rootEl.addEventListener("_click", (e: Event) => {
-      step = (e as CustomEvent).detail;
-      dispatch(step);
-    });
-
-    setCurrentStepStatus(step);
-    calcStepDimensions();
-
-    setTimeout(() => {
-      _showProgressBars = true;
-    }, 10);
-
-    // recompute size listeners
-    window.addEventListener("orientationchange", calcStepDimensions);
-
-    const resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
-      if (entries.length !== 1) return; 
-      calcStepDimensions();
-
-      const width = entries[0].contentRect.width;
-
-      for (const step of _steps) {
-        step.shadowRoot
-          ?.querySelector("label")
-          ?.dispatchEvent(new CustomEvent("resized", { 
-            bubbles: true, 
-            composed: true,
-            detail: {
-              mobile: width < MOBILE_BP,
-            }
-          }))
-      }
-    });
-
-    resizeObserver.observe(_rootEl)
-
-    return () => resizeObserver.unobserve(_rootEl);
+    // observer required to allow the parent to relay resize info down to the children, as the
+    // children need to change layout based on the parent's width
+    resizeObserver = createResizeNotififications();
+    resizeObserver.observe(_rootEl);
   });
 
   onDestroy(() => {
     window.removeEventListener("orientationchange", calcStepDimensions);
-  })
+    resizeObserver.unobserve(_rootEl);
+  });
 
-  function dispatch(step: number) {
+  // ====
+  // Functions
+  // ====
+
+  // Wait for children's mounted events, then continue setup
+  function getChildren() {
+    // listen for children mounts, then relay information back to them
+    _rootEl.addEventListener("formstep:mounted", (e: Event) => {
+      const ce = e as CustomEvent;
+      const { el, status } = ce.detail;
+
+      // save collection to allow for later event dispatching
+      _steps = [..._steps, { el, status }];
+
+      // ensure the below binding is only fired once per set of children
+      if (_bindTimeoutId) {
+        clearTimeout(_bindTimeoutId);
+      }
+
+      _bindTimeoutId = setTimeout(() => {
+        const width = _gridEl?.offsetWidth ?? 0;
+        dispatchStepResize(width);
+        bindChildren();
+        calcStepDimensions();
+        addClickListener();
+        addOrientationChangeListener();
+        _currentStep = step < 1 ? 1 : step;
+        dispatchCurrentStep(); // so app can display first step's content
+      });
+
+    });
+  }
+
+  // send details down to each of the children
+  function bindChildren() {
+    for (const [i, stepItem] of _steps.entries()) {
+      const stepIndex = i + 1;
+
+      const formStep: Partial<FormStep> = {
+        ariaLabel: `Step ${stepIndex} of ${_steps.length}`,
+        childIndex: stepIndex,
+        current: step === -1 ? stepIndex === 1 : stepIndex === step,
+        enabled: stepIndex <= step || _stepType === "free",
+        status: stepItem.status,
+      };
+
+      stepItem.el.dispatchEvent(
+        new CustomEvent<Partial<FormStep>>("formstepper:init", {
+          composed: true,
+          detail: formStep,
+        }),
+      );
+    }
+  }
+
+  // step dimensions must be recalculated on device rotations
+  function addOrientationChangeListener() {
+    window.addEventListener("orientationchange", calcStepDimensions);
+  }
+
+  // handle child click events
+  function addClickListener() {
+    // handle click events from progress items
+    _rootEl?.addEventListener("_click", (e: Event) => {
+      const nextStep = (e as CustomEvent).detail.step;
+      changeStep(nextStep);
+    });
+  }
+
+  // since container queries don't work within the form steps, due to their width not changing on
+  // formstepper resizes, this observer is needed to inform the children if the parent's width
+  // is less than the @container breakpoint
+  function createResizeNotififications(): ResizeObserver {
+    return new ResizeObserver((entries: ResizeObserverEntry[]) => {
+      if (entries.length !== 1) return;
+      calcStepDimensions();
+
+      const width = entries[0].contentRect.width;
+      dispatchStepResize(width);
+    });
+  }
+
+  // change current step state and update children
+  function changeStep(nextStep: number) {
+    if (_steps.length === 0 || nextStep > _steps.length) return;
+
+    // deactivate current step (currentStep is initially undefined)
+    if (_currentStep > 0) {
+      _steps[_currentStep - 1].el.dispatchEvent(
+        new CustomEvent("formstepper:current:changed", {
+          detail: { current: false },
+          composed: true,
+        }),
+      );
+    }
+
+    // activate new step
+    _steps[nextStep - 1].el.dispatchEvent(
+      new CustomEvent("formstepper:current:changed", {
+        detail: { current: true },
+        composed: true,
+      }),
+    );
+
+    _currentStep = nextStep;
+    calculateProgress();
+    dispatchCurrentStep();
+  }
+
+  // handles the 1-based step value and the number of line segments is one less
+  // than the number of steps
+  function calculateProgress() {
+    _progress = ((_currentStep - 1) / (_steps.length - 1)) * 100;
+  }
+
+  function calcStepDimensions() {
+    const el = _steps?.[0]?.el;
+    _stepWidth = el?.offsetWidth ?? 0;
+    _stepHeight = el?.offsetHeight ?? 0;
+    _progressHeight = _gridEl?.offsetHeight;
+
+    // ensure progress bar is not shows until initial calcs are complete, timeout needed to
+    // prevent flickering of the scrollbar
+    setTimeout(() => _showProgressBars = true, 100);
+  }
+
+  // notify outside app of step change
+  function dispatchCurrentStep() {
     _rootEl?.dispatchEvent(
       new CustomEvent("_change", {
         composed: true,
         bubbles: true,
-        detail: { step },
+        detail: { step: +_currentStep, stepIndex: +_currentStep - 1 },
       }),
     );
   }
 
-  function setCurrentStepStatus(step: number) {
-    _steps.forEach((stepEl, index) => {
-      stepEl.setAttribute("current", index === step - 1 ? "true" : "false");
-    });
-  }
+  function dispatchStepResize(width: number) {
+    if (!_steps.length) return;
 
-  async function calcStepDimensions() {
-    // tick required, without it the _steps elements width was not yet updated
-    await tick();
-    const step = _steps?.[0] as HTMLElement;
-    _stepWidth = step?.offsetWidth ?? 0;
-    _stepHeight = step?.offsetHeight ?? 0;
-    _progressHeight = _gridEl?.offsetHeight;
+    for (const step of _steps) {
+      step.el.dispatchEvent(
+        new CustomEvent("form-stepper:resized", {
+          bubbles: true,
+          composed: true,
+          detail: {
+            testid,
+            mobile: width < MOBILE_BP,
+          },
+        }),
+      );
+    }
   }
 </script>
 
@@ -163,20 +272,20 @@
     `}
     role="list"
     bind:this={_rootEl}
+    data-testid={testid}
   >
     {#if _steps.length > 0 && _showProgressBars}
       <progress class="horizontal" value={_progress} max="100"></progress>
       <progress class="vertical" value={_progress} max="100"></progress>
     {/if}
     <div class="slots" bind:this={_gridEl}>
-      <goa-grid minchildwidth="10ch">
         <slot />
-      </goa-grid>
     </div>
   </div>
 </div>
 
 <style>
+
   .slots {
     position: relative;
     inset: 0;
@@ -192,9 +301,9 @@
     z-index: 1;
     -webkit-appearance: none;
     appearance: none;
-    height: 4px;
+    height: var(--goa-stepper-line-thickness);
     border: none;
-    background: var(--goa-color-greyscale-200);
+    background: var(--goa-stepper-color-line);
     pointer-events: none;
   }
 
@@ -217,6 +326,12 @@
     .form-stepper {
       position: relative;
     }
+
+    .slots {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(10ch, 1fr));
+      gap: var(--goa-space-m);
+    }
   }
 
   /* 1.25rem = 20px = 40px / 2, half the height of the 40px stepper */
@@ -224,7 +339,7 @@
     width: calc(var(--height) - var(--step-height));
     transform: rotate(90deg)
       translate(
-        calc(50% + 1.25rem + 1.75rem),
+        calc(50% + 1.25rem + 1rem),
         calc((var(--height) - var(--step-height)) / 2 - 1.25rem - 1.5rem)
       );
   }
@@ -239,17 +354,24 @@
     .form-stepper {
       display: block;
     }
+
+    .slots {
+      display: flex;
+      flex-direction: column;
+      gap: var(--goa-space-m);
+    }
   }
+
+
 
   /* iOS tweaks */
   progress::-webkit-progress-value {
     background: var(--goa-color-interactive-default);
   }
   progress::-webkit-progress-bar {
-    background: var(--goa-color-greyscale-200);
+    background: var(--goa-stepper-color-line);
   }
   progress::-moz-progress-bar {
     background: var(--goa-color-interactive-default);
   }
-
 </style>

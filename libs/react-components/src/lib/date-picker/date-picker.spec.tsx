@@ -4,9 +4,22 @@ import { describe, it, expect, vi } from "vitest";
 
 import DatePicker from "./date-picker";
 
+const noop = () => {
+  /* do nothing */
+};
+
 describe("DatePicker", () => {
-  it("should render successfully", () => {
-    const noop = () => { /* do nothing */ };
+  it("should render", () => {
+    const { baseElement } = render(<DatePicker name="foo" onChange={noop} />);
+
+    const el = baseElement.querySelector("goa-date-picker");
+    expect(el).toBeTruthy();
+    expect(el?.getAttribute("name")).toBe("foo");
+    expect(el?.getAttribute("error")).toBeNull();
+    expect(el?.getAttribute("disabled")).toBeNull();
+  });
+
+  it("should render with properties", () => {
     const value = new Date();
     const min = addMonths(value, -1);
     const max = addMonths(value, 1);
@@ -17,6 +30,10 @@ describe("DatePicker", () => {
         min={min}
         max={max}
         value={value}
+        testId="foo"
+        error
+        disabled
+        type="input"
         onChange={noop}
       />,
     );
@@ -27,8 +44,12 @@ describe("DatePicker", () => {
     expect(el).toBeTruthy();
     expect(el?.getAttribute("name")).toBe("foo");
     expect(el?.getAttribute("value")).toBe(value.toISOString());
+    expect(el?.getAttribute("error")).toBe("true");
+    expect(el?.getAttribute("disabled")).toBe("true");
     expect(el?.getAttribute("min")).toBe(min.toISOString());
     expect(el?.getAttribute("max")).toBe(max.toISOString());
+    expect(el?.getAttribute("testid")).toBe("foo");
+    expect(el?.getAttribute("type")).toBe("input");
   });
 
   it("should handle event", async () => {
@@ -46,14 +67,11 @@ describe("DatePicker", () => {
       new CustomEvent("_change", {
         composed: true,
         bubbles: true,
-        detail: {
-          type: "date",
-          name,
-          value,
-        },
+        detail: { type: "date", name, value },
       }),
     );
 
-    expect(onChange).toBeCalledWith(name, value);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toBeCalledWith({ name, value, type: "date" });
   });
 });

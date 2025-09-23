@@ -1,60 +1,87 @@
-interface RadioItemProps {
+import { Margins } from "@abgov/ui-components-common";
+
+import type { JSX } from "react";
+
+interface WCProps extends Margins {
   name?: string;
   value?: string;
   description?: string | React.ReactNode;
+  reveal?: React.ReactNode;
+  revealarialabel?: string;
   label?: string;
-  disabled?: boolean;
-  checked?: boolean;
-  error?: boolean;
+  maxwidth?: string;
+  disabled?: string;
+  checked?: string;
+  error?: string;
+  arialabel?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
-      "goa-radio-item": RadioItemProps & React.HTMLAttributes<HTMLElement>;
+      "goa-radio-item": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
-export interface GoARadioItemProps {
+export interface GoabRadioItemProps extends Margins {
   value?: string;
   label?: string;
   name?: string;
   description?: string | React.ReactNode;
+  reveal?: React.ReactNode;
+  revealAriaLabel?: string;
+  maxWidth?: string;
   disabled?: boolean;
   checked?: boolean;
   error?: boolean;
   children?: React.ReactNode;
-  testId?: string;
+  ariaLabel?: string;
 }
 
-export function GoARadioItem({
+export function GoabRadioItem({
   name,
   label,
   value,
   description,
+  reveal,
+  revealAriaLabel,
+  maxWidth,
   disabled,
   checked,
   error,
-  testId,
+  ariaLabel,
   children,
-}: GoARadioItemProps): JSX.Element {
+  mt,
+  mr,
+  mb,
+  ml,
+}: GoabRadioItemProps): JSX.Element {
   return (
     <goa-radio-item
       name={name}
       label={label}
       value={value}
       description={typeof description === "string" ? description : undefined}
-      error={error}
-      disabled={disabled}
-      checked={checked}
-      data-testid={testId}
+      maxwidth={maxWidth}
+      error={error ? "true" : undefined}
+      disabled={disabled ? "true" : undefined}
+      checked={checked ? "true" : undefined}
+      arialabel={ariaLabel}
+      revealarialabel={revealAriaLabel}
+      mt={mt}
+      mr={mr}
+      mb={mb}
+      ml={ml}
     >
-      {description && typeof description !== "string" && <div slot="description">{description}</div>}
+      {description && typeof description !== "string" && (
+        <div slot="description">{description}</div>
+      )}
+      {reveal && <div slot="reveal">{reveal}</div>}
       {children}
     </goa-radio-item>
   );
 }
 
-export default GoARadioItem;
+export default GoabRadioItem;

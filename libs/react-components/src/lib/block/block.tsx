@@ -1,16 +1,21 @@
+import {
+  GoabBlockAlignment,
+  GoabBlockDirection,
+  Margins,
+  Spacing,
+} from "@abgov/ui-components-common";
 import { ReactNode } from "react";
-import { Alignment, Direction, Margins, Spacing } from "../../common/styling";
 
 export interface WCProps extends Margins {
   gap?: Spacing;
-  direction?: Direction;
-  alignment?: Alignment;
+  direction?: GoabBlockDirection;
+  alignment?: GoabBlockAlignment;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-block": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -18,18 +23,15 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoABlockProps extends Margins {
+export interface GoabBlockProps extends Margins {
   gap?: Spacing;
-  direction?: Direction;
-  alignment?: Alignment;
+  direction?: GoabBlockDirection;
+  alignment?: GoabBlockAlignment;
   testId?: string;
   children?: ReactNode;
 }
 
-// legacy
-export type BlockProps = GoABlockProps;
-
-export function GoABlock(props: GoABlockProps) {
+export function GoabBlock(props: GoabBlockProps) {
   return (
     <goa-block
       gap={props.gap}
@@ -39,7 +41,7 @@ export function GoABlock(props: GoABlockProps) {
       mr={props.mr}
       mb={props.mb}
       ml={props.ml}
-      data-testid={props.testId}
+      testid={props.testId}
     >
       {props.children}
     </goa-block>

@@ -7,13 +7,15 @@
   type Issue = {
     filename: string;
     error: string;
-  }
+  };
+  type FileSizeUnit = "B" | "KB" | "MB" | "GB";
 
   // Public
 
   export let variant: Variant = "dragdrop";
   export let accept: string = "*";
   export let maxfilesize: string = "5MB";
+  export let testid: string = "";
 
   // Private
 
@@ -30,7 +32,6 @@
       "change",
       () => {
         issues = []; // reset on every new batch of files
-
         // @ts-expect-error
         [..._fileInput.files].forEach((file) => {
           const error = validate(file);
@@ -59,11 +60,16 @@
   }
 
   function isValidFileType(file: File): boolean {
-    const typeMatchers = accept.split(",");
+    const typeMatchers = accept.split(",").map((type) => type.trim());
+    const lowercaseFileType = file.type.toLowerCase();
+    const lowercaseFileName = file.name.toLowerCase();
+
     for (const matcher of typeMatchers) {
+      const lowercaseMatcher = matcher.toLowerCase();
       const matches =
-        file.type.match(matcher.replace("*", ".*").replace("/", "/")) ||
-        file.name.endsWith(accept);
+        lowercaseFileType.match(lowercaseMatcher.replace("*", ".*")) ||
+        lowercaseFileName.endsWith(lowercaseMatcher);
+
       if (matches) {
         return true;
       }
@@ -72,14 +78,21 @@
   }
 
   function isValidFileSize(file: File): boolean {
-    const [_, size, units] = maxfilesize.match(/(\d*)(\w*$)/);
-    const factor = {
+    const matches = maxfilesize.match(/(\d*)(\w*$)/);
+    if (!matches) {
+      return false;
+    }
+
+    const size = matches[1];
+    const units = matches[2];
+    const factor: Record<FileSizeUnit, number> = {
       B: 1,
       KB: 1024,
       MB: Math.pow(1024, 2),
       GB: Math.pow(1024, 3),
     };
-    if (file.size / factor[units] > parseInt(size)) {
+
+    if (file.size / factor[units as FileSizeUnit] > parseInt(size)) {
       return false;
     }
     return true;
@@ -111,16 +124,17 @@
     issues = []; // reset on every new batch of files
 
     if (e.dataTransfer?.items) {
-      // @ts-expect-error
       [...e.dataTransfer.items].forEach((item) => {
         if (item.kind === "file") {
           const file = item.getAsFile();
-          const error = validate(file);
-          if (error) {
-            issues = [{ filename: file.name, error }, ...issues];
-            return;
+          if (file) {
+            const error = validate(file);
+            if (error) {
+              issues = [{ filename: file.name, error }, ...issues];
+              return;
+            }
+            dispatch(file);
           }
-          dispatch(item.getAsFile());
         }
       });
     } else {
@@ -173,7 +187,7 @@
 {#if variant === "dragdrop"}
   <div
     bind:this={_el}
-    data-testid="dragdrop"
+    data-testid={testid || "dragdrop"}
     class={`dragdrop state-${_state}`}
     on:click={openFilePicker}
     on:drop={onDrop}
@@ -186,13 +200,13 @@
     <div class="instructions">
       <goa-icon type="cloud-upload" size="large" />
       <div>Drag and drop files here</div>
-      <em>or</em>
+      <em class="or-text">or</em>
       <div class="browse-files">Browse files</div>
     </div>
 
     {#if maxfilesize}
       <em class="max-file-size" data-testid="max-file-size"
-        >Maximum file size is {maxfilesize}.</em
+        >Maximum file size is {maxfilesize}</em
       >
     {/if}
 
@@ -202,6 +216,7 @@
       type="file"
       {accept}
       bind:this={_fileInput}
+      multiple
     />
   </div>
 {/if}
@@ -213,15 +228,15 @@
     </goa-button>
 
     {#if maxfilesize}
-      <em class="max-file-size"  data-testid="max-file-size">
-        Maximum file size is {maxfilesize}.
+      <em class="max-file-size" data-testid="max-file-size">
+        Maximum file size is {maxfilesize}
       </em>
     {/if}
   </div>
 
   <input
     bind:this={_fileInput}
-    data-testid="input"
+    data-testid={testid || "input"}
     tabindex="-1"
     type="file"
     {accept}
@@ -245,55 +260,56 @@
 
 <style>
   .dragdrop {
-    border-radius: var(--goa-border-radius-m);
-    border: var(--goa-border-width-m) dashed
-      var(--goa-color-interactive-default);
+    border-radius: var(--goa-file-upload-border-radius);
+    border: var(--goa-file-upload-border);
     display: flex;
-    font: var(--goa-typography-body-m);
+    font: var(--goa-file-upload-instruction-text);
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
-    padding: var(--goa-space-xl) 0;
-    color: var(--goa-color-interactive-default);
+    gap: var(
+      --goa-file-upload-text-gap
+    ); /* 3rem is the space between the icon and the text */
+    padding: var(--goa-file-upload-padding);
+    color: var(--goa-file-upload-instruction-color);
     text-align: center;
     cursor: pointer;
-
+    background: var(--goa-file-upload-color-bg);
     container: self / inline-size;
-  }
-
-  .dragdrop:active,
-  .dragdrop:focus-within {
-    border-style: solid;
-    outline: none;
-  }
-  .dragdrop:hover div {
-    color: var(--goa-color-interactive-hover);
   }
 
   /** States **/
 
-  .state-default {
-    background: var(--goa-color-info-background);
+  .dragdrop:active {
+    border: var(--goa-file-upload-border-active);
+    outline: none;
   }
+
+  .dragdrop:focus-within {
+    border: var(--goa-file-upload-border-hover);
+    box-shadow: var(--goa-file-upload-border-focus);
+    background-color: var(--goa-file-upload-color-bg-focus);
+    color: var(--goa-file-upload-instruction-color-focus);
+  }
+
   .state-hover {
-    background: var(--goa-color-greyscale-100);
-    border-style: dashed;
+    background: var(--goa-file-upload-color-bg-hover);
+    border: var(--goa-file-upload-border-hover);
+    color: var(--goa-file-upload-instruction-color-hover);
   }
   .state-dragenter {
-    background: var(--goa-color-info-background);
-    border-style: solid;
+    background: var(--goa-file-upload-color-bg-drag);
+    border: var(--goa-file-upload-border-drag);
+    color: var(--goa-file-upload-instruction-color-drag);
   }
 
   .instructions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
   }
 
   goa-icon {
-    margin-top: 4px;
-    margin-right: 4px;
+    margin: 0 var(--goa-space-s);
   }
 
   .browse-files {
@@ -302,13 +318,19 @@
 
   em {
     font-style: normal;
-    font: var(--goa-typography-body-s);
-    color: var(--goa-color-greyscale-700);
+    font: var(--goa-file-upload-help-text);
+    color: var(--goa-file-upload-help-text-color);
+  }
+
+  .or-text {
+    margin: var(--goa-space-3xs) var(--goa-space-xs) 0 var(--goa-space-xs);
   }
 
   .max-file-size {
     display: block;
-    margin-top: 0.5rem;
+  }
+  .button .max-file-size {
+    margin-top: var(--goa-space-xs);
   }
 
   input[type="file"] {

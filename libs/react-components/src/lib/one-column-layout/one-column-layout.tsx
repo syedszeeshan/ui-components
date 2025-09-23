@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
+import { ReactNode, type JSX } from "react";
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -9,14 +9,14 @@ declare global {
   }
 }
 
-export interface GoAPageProps {
+export interface GoabPageProps {
   children?: ReactNode;
 }
 
-export type PageProps = GoAPageProps;
+export type PageProps = GoabPageProps;
 
-export function GoAOneColumnLayout(props: GoAPageProps): JSX.Element {
+export function GoabOneColumnLayout(props: GoabPageProps): JSX.Element {
   return <goa-one-column-layout>{props.children}</goa-one-column-layout>;
 }
 
-export default GoAOneColumnLayout;
+export default GoabOneColumnLayout;

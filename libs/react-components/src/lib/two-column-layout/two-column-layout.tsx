@@ -5,7 +5,7 @@ interface WCProps {
   maxcontentwidth?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-export interface GoATwoColumnLayoutProps {
+export interface GoabTwoColumnLayoutProps {
   navColumnWidth?: string;
   maxContentWidth?: string;
   header: ReactNode;
@@ -23,7 +23,7 @@ export interface GoATwoColumnLayoutProps {
   children: ReactNode;
 }
 
-export function GoATwoColumnLayout(props: GoATwoColumnLayoutProps) {
+export function GoabTwoColumnLayout(props: GoabTwoColumnLayoutProps) {
   return (
     <goa-two-column-layout
       navcolumnwidth={props.navColumnWidth}
@@ -37,4 +37,4 @@ export function GoATwoColumnLayout(props: GoATwoColumnLayoutProps) {
   );
 }
 
-export default GoATwoColumnLayout;
+export default GoabTwoColumnLayout;

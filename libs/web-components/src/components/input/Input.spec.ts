@@ -1,6 +1,7 @@
 import { render, fireEvent, waitFor, cleanup } from "@testing-library/svelte";
 import GoAInput from "./Input.svelte";
 import GoAInputWrapper from "./Input.test.svelte";
+import GoAInputFormItemWrapper from "./InputFormItemWrapper.test.svelte";
 import { it, describe } from "vitest";
 
 afterEach(cleanup);
@@ -8,7 +9,7 @@ afterEach(cleanup);
 describe("GoAInput Component", () => {
   it("should render", async () => {
     const el = render(GoAInput, { testid: "input-test", id: "test" });
-    const input = await el.findByTestId('input-test');
+    const input = await el.findByTestId("input-test");
     expect(input).toBeTruthy();
     expect(input.getAttribute("id")).toBe("test");
   });
@@ -107,14 +108,42 @@ describe("GoAInput Component", () => {
       expect(root).toBeTruthy();
     });
 
-    it("defaults to the name property if arialabel is not supplied", async () => {
-      const el = render(GoAInput, { testid: "input-test", name: "firstName" });
-      const root = el.container.querySelector('[aria-label="firstName"]');
-      expect(root).toBeTruthy();
+    it("should generate an aria-label value when not provided", async () => {
+      const result = render(GoAInputFormItemWrapper, {
+        inputId: "",
+        inputName: "inputName",
+        label: "DDD Alberta",
+        testIdFormItem: "formItem-testid",
+        testIdInput: "input-testid",
+      });
+      const inputEl = result.queryByTestId("input-testid");
+
+      await waitFor(() => {
+        expect(inputEl?.getAttribute("aria-label")).toBe("DDD Alberta");
+      });
+    });
+
+    it("shouldn't overwrite aria-label if a value has already been assigned", async () => {
+      const result = render(GoAInputFormItemWrapper, {
+        inputId: "inputId",
+        inputName: "inputName",
+        arialabel: "DONT OVERWRITE ME",
+        label: "DDD Alberta",
+        testIdFormItem: "formItem-testid",
+        testIdInput: "input-testid",
+      });
+      const inputEl = result.queryByTestId("input-testid");
+
+      await waitFor(() => {
+        expect(inputEl?.getAttribute("aria-label")).toBe("DONT OVERWRITE ME");
+      });
     });
 
     it("accepts an arialabelledby property", async () => {
-      const el = render(GoAInput, { testid: "input-test", arialabelledby: "firstName" });
+      const el = render(GoAInput, {
+        testid: "input-test",
+        arialabelledby: "firstName",
+      });
       const root = el.container.querySelector('[aria-labelledby="firstName"]');
       expect(root).toBeTruthy();
     });
@@ -125,6 +154,15 @@ describe("GoAInput Component", () => {
         autocapitalize: "on",
       });
       const root = el.container.querySelector("[autocapitalize=on]");
+      expect(root).toBeTruthy();
+    });
+
+    it("has an autocomplete prop", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        autocomplete: "off",
+      });
+      const root = el.container.querySelector("[autocomplete=off]");
       expect(root).toBeTruthy();
     });
   });
@@ -177,7 +215,7 @@ describe("GoAInput Component", () => {
       keypress();
     });
 
-    await fireEvent.keyUp(input, { target: { value: "foobar" }, key: 'r' });
+    await fireEvent.keyUp(input, { target: { value: "foobar" }, key: "r" });
     await waitFor(() => {
       expect(change).toBeCalledTimes(1);
       expect(keypress).toBeCalledTimes(1);
@@ -302,7 +340,9 @@ describe("GoAInput Component", () => {
       expect(container.querySelector(".suffix")).toBeNull();
     });
     it("shows prefix text and also a warning message in console", async () => {
-      const mock = vi.spyOn(console, "warn").mockImplementation(() => { /* do nothing */ });
+      const mock = vi.spyOn(console, "warn").mockImplementation(() => {
+        /* do nothing */
+      });
       const { container } = render(GoAInput, { type: "text", prefix: "$" });
       const prefix = container.querySelector(".prefix");
 
@@ -314,12 +354,16 @@ describe("GoAInput Component", () => {
       mock.mockRestore();
     });
     it("shows suffix text and also a warning message in console", async () => {
-      const mock = vi.spyOn(console, "warn").mockImplementation(() => { /* do nothing */ });
+      const mock = vi.spyOn(console, "warn").mockImplementation(() => {
+        /* do nothing */
+      });
       const { container } = render(GoAInput, {
         type: "text",
         suffix: "per item",
       });
-      expect(container.querySelector(".suffix")?.innerHTML).toContain("per item");
+      expect(container.querySelector(".suffix")?.innerHTML).toContain(
+        "per item",
+      );
       await waitFor(() => {
         expect(console.warn["mock"].calls.length).toBeGreaterThan(0);
       });
@@ -358,7 +402,9 @@ describe("GoAInput Component", () => {
       const el = render(GoAInputWrapper, { leadingContent: content });
       expect(el.container.innerHTML).toContain(content);
 
-      const leadingContent = el.container.querySelector("[slot=leadingContent]");
+      const leadingContent = el.container.querySelector(
+        "[slot=leadingContent]",
+      );
       expect(leadingContent).toBeTruthy();
       expect(leadingContent?.innerHTML).toContain(content);
     });
@@ -366,7 +412,9 @@ describe("GoAInput Component", () => {
     it("should have a slot for the trailing content", async () => {
       const content = "items";
       const el = render(GoAInputWrapper, { trailingContent: content });
-      const trailingContent = el.container.querySelector("[slot=trailingContent]");
+      const trailingContent = el.container.querySelector(
+        "[slot=trailingContent]",
+      );
 
       expect(el.container.innerHTML).toContain(content);
       expect(trailingContent?.innerHTML).toContain(content);
@@ -397,5 +445,249 @@ describe("GoAInput Component", () => {
       },
       { timeout: 2000 },
     );
+  });
+
+  describe("Text Alignment", () => {
+    it("defaults to left alignment when no textalign prop is provided", async () => {
+      const el = render(GoAInput, { testid: "input-test" });
+      const input = await el.findByTestId("input-test");
+
+      expect(input.style.textAlign).toBe("");
+      expect(input.style.cssText).not.toContain("text-align: right");
+    });
+
+    it("applies left alignment when textalign is set to 'left'", async () => {
+      const el = render(GoAInput, { testid: "input-test", textalign: "left" });
+      const input = await el.findByTestId("input-test");
+
+      expect(input.style.cssText).not.toContain("text-align: right");
+    });
+
+    it("applies right alignment when textalign is set to 'right'", async () => {
+      const el = render(GoAInput, { testid: "input-test", textalign: "right" });
+      const input = await el.findByTestId("input-test");
+
+      expect(input.style.cssText).toContain("text-align: right");
+    });
+
+    it("applies right alignment to number input", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        type: "number",
+        textalign: "right",
+      });
+      const input = await el.findByTestId("input-test");
+
+      expect(input.getAttribute("type")).toBe("number");
+      expect(input.style.cssText).toContain("text-align: right");
+    });
+
+    it("renders left-aligned input for visual regression testing", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        textalign: "left",
+        value: "Sample left-aligned text",
+        placeholder: "Left aligned placeholder",
+      });
+      const input = await el.findByTestId("input-test");
+
+      expect(input).toBeTruthy();
+      expect(input.style.cssText).not.toContain("text-align: right");
+      expect((input as HTMLInputElement).value).toBe(
+        "Sample left-aligned text",
+      );
+    });
+
+    it("renders right-aligned input for visual regression testing", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        textalign: "right",
+        value: "Sample right-aligned text",
+        placeholder: "Right aligned placeholder",
+      });
+      const input = await el.findByTestId("input-test");
+
+      expect(input).toBeTruthy();
+      expect(input.style.cssText).toContain("text-align: right");
+      expect((input as HTMLInputElement).value).toBe(
+        "Sample right-aligned text",
+      );
+    });
+
+    it("renders right-aligned number input for visual regression testing", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        type: "number",
+        textalign: "right",
+        value: "12345.67",
+        placeholder: "0.00",
+      });
+      const input = await el.findByTestId("input-test");
+
+      expect(input).toBeTruthy();
+      expect(input.getAttribute("type")).toBe("number");
+      expect(input.style.cssText).toContain("text-align: right");
+      expect((input as HTMLInputElement).value).toBe("12345.67");
+    });
+  });
+
+  describe("Width Tests", () => {
+    it("rem width applied correctly", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "20rem",
+      });
+
+      await waitFor(() => {
+        const container = el.container.querySelector(".container");
+        expect(container?.getAttribute("style")).toContain("width: 20rem");
+      });
+    });
+
+    it("em width applied correctly", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "15em",
+      });
+
+      await waitFor(() => {
+        const container = el.container.querySelector(".container");
+        expect(container?.getAttribute("style")).toContain("width: 15em");
+      });
+    });
+
+    it("px width applied correctly", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "300px",
+      });
+
+      await waitFor(() => {
+        const container = el.container.querySelector(".container");
+        expect(container?.getAttribute("style")).toContain("width: 300px");
+      });
+    });
+
+    it("percentage width applied correctly", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "50%",
+      });
+
+      await waitFor(() => {
+        const container = el.container.querySelector(".container");
+        expect(container?.getAttribute("style")).toContain("width: 50%");
+      });
+    });
+
+    it("ch width applied correctly", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "25ch",
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        expect(input.style.width).toBe("26ch"); // 25 + 1 for regular inputs
+      });
+    });
+
+    it("empty width uses default behavior", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "",
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        expect(input.style.width).toBe("31ch"); // default 30 + 1
+      });
+    });
+
+    it("unitless width uses default behavior", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "300",
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        expect(input.style.width).toBe("31ch"); // default behavior, same as empty width
+      });
+    });
+
+    it("whitespace-only width uses default behavior", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "   ", // only spaces
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        expect(input.style.width).toBe("31ch"); // default 30 + 1
+      });
+    });
+
+    it("handles invalid ch values gracefully", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        width: "invalidch", // invalid number
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        const hasValidWidth =
+          input.style.width === "1ch" || input.style.width === "";
+        expect(hasValidWidth).toBe(true);
+      });
+    });
+
+    it("uses default 30ch when no width prop provided", async () => {
+      const el = render(GoAInput, {
+        testid: "input-test",
+        // no width provided
+      });
+
+      await waitFor(() => {
+        const input = el.getByTestId("input-test");
+        expect(input.style.width).toBe("31ch"); // default 30 + 1
+      });
+    });
+
+    it("fractional rem values work correctly", async () => {
+      const testCases = ["1.25rem", "3.75rem", "10.5rem", "0.5rem"];
+
+      for (const width of testCases) {
+        const el = render(GoAInput, {
+          testid: "input-test",
+          width,
+        });
+
+        await waitFor(() => {
+          const container = el.container.querySelector(".container");
+          expect(container?.getAttribute("style")).toContain(`width: ${width}`);
+        });
+
+        cleanup();
+      }
+    });
+
+    it("fractional em values work correctly", async () => {
+      const testCases = ["2.25em", "5.75em", "12.5em", "0.8em"];
+
+      for (const width of testCases) {
+        const el = render(GoAInput, {
+          testid: "input-test",
+          width,
+        });
+
+        await waitFor(() => {
+          const container = el.container.querySelector(".container");
+          expect(container?.getAttribute("style")).toContain(`width: ${width}`);
+        });
+
+        cleanup();
+      }
+    });
   });
 });

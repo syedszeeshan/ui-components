@@ -15,73 +15,28 @@ ul.goa-unordered-list li::marker {
 }
 
 /* GoAAppHeader */
-
-
+/** needed to override a,
+a:visited at reset.css */
 goa-app-header a,
 goa-app-header a:visited {
   color: var(--goa-color-text-default);
 }
 
-goa-app-header a:focus {
-  outline: var(--goa-border-width-l) solid var(--goa-color-interactive-focus) !important;
-  outline-offset: -3px !important;
-  background: var(--goa-color-greyscale-100) !important;
-  cursor: pointer !important;
-  color: var(--goa-color-interactive-hover) !important;
-}
-
-goa-app-header a:active {
-  color: var(--goa-color-text-default) !important;
-}
-
-goa-app-header a:hover,
-goa-app-header a:visited:hover,
-goa-app-header goa-app-header-menu:hover {
-  background: var(--goa-color-greyscale-100);
-  cursor: pointer !important;
-  color: var(--goa-color-interactive-hover);
-}
-
-goa-app-header-menu a,
-goa-app-header-menu a:visited {
-  box-shadow: inset 0 1px 0 0 var(--goa-color-greyscale-200);
-  color: var(--goa-color-text-default);
-  display: block;
-  padding: calc((3rem - var(--goa-line-height-3)) / 2) 1rem;
-  text-decoration: none;
+goa-app-header a.current.inside-collapse-menu,
+goa-app-header a.current.inside-collapse-menu:hover,
+goa-app-header-menu a.current,
+goa-app-header-menu a.current:hover {
+  color: var(--goa-color-text-light);
 }
 
 goa-app-header-menu a:first-of-type {
   box-shadow: none;
 }
 
-goa-app-header-menu a:hover {
-  background: var(--goa-color-greyscale-100);
-}
-
-goa-app-header-menu a:focus-visible {
-  outline: var(--goa-border-width-l) solid var(--goa-color-interactive-focus);
-  outline-offset: -3px;
-}
-
-goa-app-header a.interactive {
-  font-weight: var(--goa-font-weight-medium);
-  text-decoration: underline;
-  color: var(--goa-color-interactive-default);
-}
-
-goa-app-header a.interactive:hover {
-  color: var(--goa-color-interactive-hover);
-}
-
 /* Table */
 
 goa-table table {
   border-collapse: collapse;
-}
-
-goa-table.relaxed td {
-  padding: 1rem;
 }
 
 goa-table.sticky thead {
@@ -91,22 +46,28 @@ goa-table.sticky thead {
 
 goa-table td {
   font: var(--goa-typography-body-m);
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--goa-color-greyscale-200);
+  padding: var(--goa-space-xs) var(--goa-space-m) var(--goa-space-xs);
+  border-bottom: var(--goa-border-width-s) solid var(--goa-color-greyscale-200);
+  vertical-align: top;
+  box-sizing: border-box;
+  height: var(--goa-space-2xl);
+}
+
+goa-table[variant="relaxed"] td {
+  padding: var(--goa-space-m);
 }
 
 goa-table thead th {
   background-color: var(--goa-color-greyscale-white);
-  color: var(--goa-color-text-secondary);
-  padding: 1rem;
+  color: var(--goa-table-color-heading);
+  padding:
+  var(--goa-space-s)
+  var(--goa-table-header-padding, var(--goa-space-m))
+  var(--goa-space-xs) var(--goa-table-header-padding, var(--goa-space-m));
   text-align: left;
-  border-bottom: 2px solid var(--goa-color-greyscale-600);
+  border-bottom: var(--goa-border-width-m) solid var(--goa-table-color-border-heading);
   vertical-align: bottom;
-}
-
-goa-table th:has(goa-table-sort-header) {
-  padding: 0;
-}
+  }
 
 .goa-table-number-column {
   font: var(--goa-typography-number-m);
@@ -117,12 +78,26 @@ goa-table th:has(goa-table-sort-header) {
   text-align: right;
 }
 
+.goa-table-number-header:not(:has(goa-table-sort-header)) {
+  padding-bottom: var(--goa-space-xs);
+}
+
+goa-table thead th:has(goa-table-sort-header) {
+	padding-bottom: 1px;
+	padding-top: 0;
+}
+
+goa-table thead th:has(goa-table-sort-header):hover {
+	background-color: var(--goa-color-greyscale-100);
+	color: var(--goa-color-interactive-hover);
+}
+
 goa-table tfoot td {
   background-color: var(--goa-color-greyscale-100);
 }
 
 goa-table tfoot tr:first-child td {
-  border-top: 2px solid var(--goa-color-greyscale-200);
+  border-top: var(--goa-border-width-m) solid var(--goa-color-greyscale-200);
 }
 
 goa-table tfoot tr:last-child td {

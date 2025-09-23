@@ -1,12 +1,26 @@
 <svelte:options customElement="goa-side-menu-group" />
 
-<script lang="ts">
-  import { onDestroy, onMount, tick } from "svelte";
-  import { isUrlMatch } from "../../common/urls";
+<script lang="ts" context="module">
+  export type SideMenuGroupProps = {
+    el: HTMLElement;
+    links: Element[];
+    currentHref?: string;
+  };
+</script>
 
-  type SideMenuGroupElement = HTMLElement & { heading?: string };
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { getSlottedChildren } from "../../common/utils";
+  import type { GoAIconType } from "../icon/Icon.svelte";
+  import { calculateMargin, Spacing } from "../../common/styling";
 
   export let heading: string;
+  export let icon: GoAIconType | null = null;
+  export let testid: string = "";
+  export let mt: Spacing = null;
+  export let mr: Spacing = null;
+  export let mb: Spacing = null;
+  export let ml: Spacing = null;
 
   let _open = false;
   let _current = false;
@@ -14,91 +28,66 @@
 
   $: _slug = toSlug(heading);
 
-  onMount(async () => {
-    await tick(); // needed to allow for window location to be read
-    checkUrlMatches();
-    setCurrent();
+  onMount(() => {
+    dispatchInit();
     addEventListeners();
   });
 
-  onDestroy(() => {
-    removeEventListeners();
-  });
+  function dispatchInit() {
+    if (!_rootEl) return;
 
-  function checkUrlMatches() {
-    _open = matchesMenu() || matchesChild(_rootEl);
-    if (_open) {
-      notifyParent(true);
-    }
+    const slottedChildren = getSlottedChildren(_rootEl);
+    if (slottedChildren.length === 0) return;
+
+    const links = slottedChildren
+      .filter((el) => el.tagName === "A")
+      .map((el) => {
+        el.classList.remove("current");
+        return el;
+      });
+
+    setTimeout(() => {
+      _rootEl.dispatchEvent(
+        new CustomEvent<SideMenuGroupProps>("sidemenugroup:mounted", {
+          detail: {
+            el: _rootEl,
+            links: links,
+          },
+          composed: true,
+          bubbles: true,
+        }),
+      );
+    }, 1);
   }
 
   function addEventListeners() {
+    // listen to events by parent sidemenu (if parent has a final link current)
+    _rootEl.addEventListener("sidemenu:current:change", (e: Event) => {
+      const href = (e as CustomEvent).detail;
+      setCurrent(href);
+    });
+
     // listen to events by children (if child is open the parent also has to be open)
-    _rootEl.addEventListener("_open", () => {
-      _open = true;
-      _current = true;
+    _rootEl.addEventListener("_open", (e: Event) => {
+      _open = _current = (e as CustomEvent).detail.current;
     });
-
-    // watch path changes
-    let currentLocation = document.location.href;
-    const observer = new MutationObserver((_mutationList) => {
-      // if path change occurs
-      if (currentLocation !== document.location.href) {
-        currentLocation = document.location.href;
-        setCurrent();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // watch hash / browser history changes
-    window.addEventListener("popstate", setCurrent);
-  }
-
-  function removeEventListeners() {
-    window.removeEventListener("popstate", setCurrent);
   }
 
   function toSlug(path: string): string {
     return path?.toLowerCase().replace(/ /g, "-");
   }
 
-  function matchesMenu(): boolean {
-    return isUrlMatch(document.location, _slug) >= 0;
-  }
+  function setCurrent(matchedHref: string) {
+    const children = getSlottedChildren(_rootEl);
+    if (children.length === 0) return;
 
-  function matchesChild(el: SideMenuGroupElement): boolean {
-    if (isUrlMatch(document.location, toSlug(el.heading)) >= 0) {
-      return true;
-    }
-
-    const slot = el.querySelector("slot") as HTMLSlotElement;
-    if (!slot) {
-      return false;
-    }
-    const children = slot.assignedElements();
-    return !!children.find((child: Element) => {
-      return isUrlMatch(document.location, child.getAttribute("href")) >= 0;
-    });
-  }
-
-  function setCurrent() {
-    const slot = _rootEl.querySelector("slot") as HTMLSlotElement;
-    if (!slot) {
-      return false;
-    }
-
-    const children = slot.assignedElements();
-    let maxMatchWeight = -1;
     let matchedChild = null;
 
     _current = false;
     children.forEach((child: Element) => {
       const url = child.getAttribute("href");
-      const weight = isUrlMatch(document.location, url);
-      if (weight > maxMatchWeight) {
-        maxMatchWeight = weight;
-        matchedChild = child;
-      }
+      if (url === matchedHref) matchedChild = child;
+
       child.classList.remove("current");
 
       // get side-menu-group (level >= 2) marked as children
@@ -108,10 +97,10 @@
     });
 
     if (matchedChild) {
-      _current = true;
-      matchedChild.classList.add("current");
-      notifyParent(true);
+      (matchedChild as Element).classList.add("current");
     }
+    _current = _open = !!matchedChild;
+    notifyParent(_open);
   }
 
   function handleClick(e: Event) {
@@ -130,14 +119,29 @@
   }
 </script>
 
-<div bind:this={_rootEl} class="side-menu-group" class:current={_current}>
-  <a href={`#${_slug}`} class="heading" on:click={handleClick}>
-    {heading}
-    {#if _open}
-      <goa-icon type="chevron-down" />
-    {:else}
-      <goa-icon type="chevron-forward" />
+<div bind:this={_rootEl}
+     class="side-menu-group"
+     class:current={_current}
+     data-testid={testid}
+     style={`
+    ${calculateMargin(mt, mr, mb, ml)};
+  `}
+>
+  <a href={`#${_slug}`} class="heading" class:open={_open} on:click={handleClick}>
+    {#if icon}
+      <div class="leading-icon">
+        <goa-icon type={icon} />
+      </div>
     {/if}
+    {heading}
+    <div class="trailing-icon">
+      {#if _open}
+        <goa-icon type="chevron-down"/>
+      {:else}
+        <goa-icon type="chevron-forward"/>
+      {/if}
+    </div>
+
   </a>
   <div class:hidden={!_open} class="group" data-testid="group">
     <slot />
@@ -149,31 +153,49 @@
   :global(::slotted(goa-side-menu-heading)),
   :global(::slotted(a:visited)) {
     /* required to override base styles */
-    color: var(--goa-color-text-default) !important;
+    color: var(--goa-side-menu-color-menu-item) !important;
     display: block;
-    font: var(--goa-typography-body-m);
-    margin-left: 1rem;
+    font: var(--goa-side-menu-typography-item);
+    margin-left: var(--goa-side-menu-child-margin);
+    background-color: var(--goa-side-menu-group-color-bg);
   }
 
   :global(::slotted(a)),
   :global(::slotted(a:visited)) {
-    padding: 0.5rem 1rem;
+    padding: var(--goa-side-menu-padding-child);
     text-decoration: none;
-    border-left: 4px solid var(--goa-color-greyscale-100);
+    border-left: var(--goa-side-menu-child-border-left);
   }
 
   :global(::slotted(a.current)) {
-    font: var(--goa-typography-heading-s);
-    border-left: 4px solid var(--goa-color-interactive-disabled);
-    background: var(--goa-color-info-background);
+    font: var(--goa-side-menu-typography-item-current);
+    border-left: var(--goa-side-menu-child-border-left-selected);
+    background: var(--goa-side-menu-child-color-bg-selected);
+    /* required to override base styles & above :global(::slotted(a) !important */
+    color: var(--goa-side-menu-child-color-text-selected)!important;
   }
+
   :global(::slotted(a:hover:not(.current))) {
-    background: var(--goa-color-info-background);
-    border-color: var(--goa-color-greyscale-200);
+    background: var(--goa-side-menu-child-color-bg-hover);
+    border-left: var(--goa-side-menu-child-border-left-hover);
   }
+
   :global(::slotted(a:focus-visible)),
   .heading:focus-visible {
-    outline: var(--goa-border-width-l) solid var(--goa-color-interactive-focus);
+    outline: var(--goa-side-menu-item-focus-border);
+    outline-offset: -3px;
+  }
+
+
+  .heading {
+    gap: var(--goa-space-xs); /* 8px - the minimum space between the text and the chevron icon */
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  goa-icon {
+    margin-top: var(--goa-space-2xs); /* vertically centering the icon with text */
   }
 
   /**
@@ -182,36 +204,47 @@
    */
   :host([child="true"]) a.heading,
   .heading {
-    color: var(--goa-color-text-default);
+    color: var(--goa-side-menu-color-menu-item);
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    line-height: 2rem;
-    padding: 0.5rem 1rem 0.5rem 2rem;
+    font: var(--goa-side-menu-typography-item);
+    padding: var(--goa-side-menu-parent-padding);
     text-decoration: none;
+    font: var(--goa-side-menu-typography-item);
+    border-radius: var(--goa-side-menu-group-border-radius);
+  }
+  .heading.open {
+    font: var(--goa-side-menu-typography-item-current);
   }
 
   :host([child="true"]) a.heading {
-    margin-left: 1rem;
-    border-left: 4px solid var(--goa-color-greyscale-100);
-    padding: 0.5rem 1rem 0.5rem 1rem;
+    border-left: var(--goa-side-menu-child-border-left);
+    padding: var(--goa-side-menu-padding-child);
+    margin-left: var(--goa-side-menu-child-margin);
   }
 
   :host([child="true"]) a.heading:hover {
-    border-color: var(--goa-color-greyscale-200);
-    background: var(--goa-color-info-background);
+    border-left: var(--goa-side-menu-child-border-left-hover);
+    background: var(--goa-side-menu-child-color-bg-hover);
   }
 
   :host([child="true"]) .side-menu-group.current a.heading {
-    background: var(--goa-color-info-background);
-    border-left: 4px solid var(--goa-color-interactive-disabled);
+    background: var(--goa-side-menu-child-color-bg-selected);
+    border-left: var(--goa-side-menu-child-border-left);
+  }
+
+  .side-menu-group {
+    background-color: var(--goa-side-menu-group-color-bg);
+    border-radius: var(--goa-side-menu-group-border-radius);
+    padding: var(--goa-side-menu-group-padding);
   }
 
   .side-menu-group.current .heading {
-    background: #cedfee;
+    background: var(--goa-side-menu-parent-color-bg-selected);
   }
+
   .heading:hover {
-    background: #cedfee;
+    background: var(--goa-side-menu-color-bg-menu-item-hover);
   }
 
   .hidden {
@@ -219,6 +252,14 @@
   }
 
   .group {
-    padding-left: 1rem;
+    padding-left: var(--goa-side-menu-child-margin);
+  }
+
+  .trailing-icon {
+    margin-left: auto;
+    height: var(--goa-icon-size-l); /* to make sure the icon vertical center */
+  }
+  .leading-icon {
+    height: var(--goa-icon-size-l); /* to make sure the icon vertical center */
   }
 </style>

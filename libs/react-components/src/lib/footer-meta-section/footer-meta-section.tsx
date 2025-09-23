@@ -1,28 +1,33 @@
 import { ReactNode } from "react";
 
-declare global {
+interface WCProps {
+  testid?: string;
+}
+
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
-      "goa-app-footer-meta-section": React.HTMLAttributes<HTMLElement>;
+      "goa-app-footer-meta-section": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
 /* eslint-disable-next-line */
-export interface GoAAppFooterMetaSectionProps {
+export interface GoabAppFooterMetaSectionProps {
+  testId?: string;
   children?: ReactNode;
 }
 
-// legacy name
-export type FooterMetaSectionProps = GoAAppFooterMetaSectionProps;
-
-export function GoAAppFooterMetaSection({ children }: GoAAppFooterMetaSectionProps) {
+export function GoabAppFooterMetaSection({
+  testId,
+  children,
+}: GoabAppFooterMetaSectionProps) {
   return (
-    <goa-app-footer-meta-section slot="meta">
+    <goa-app-footer-meta-section testid={testId} slot="meta">
       {children}
     </goa-app-footer-meta-section>
   );
 }
 
-export default GoAAppFooterMetaSection;
+export default GoabAppFooterMetaSection;

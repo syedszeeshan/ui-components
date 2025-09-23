@@ -1,16 +1,16 @@
-import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
-
-export type GoAPosition = "above" | "below" | "auto";
+import { GoabPopoverPosition, Margins } from "@abgov/ui-components-common";
+import { ReactNode, type JSX } from "react";
 
 interface WCProps extends Margins {
   maxwidth?: string;
-  padded?: boolean;
-  position?: GoAPosition;
-  relative?: boolean;
+  minwidth?: string;
+  padded?: string;
+  position?: GoabPopoverPosition;
+  relative?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -19,20 +19,25 @@ declare global {
   }
 }
 
-export interface GoAPopoverProps extends Margins {
+export interface GoabPopoverProps extends Margins {
   target?: ReactNode;
   testId?: string;
   maxWidth?: string;
+  minWidth?: string;
   padded?: boolean;
-  position?: GoAPosition;
+  position?: GoabPopoverPosition;
   children: ReactNode;
+  /***
+   * @deprecated This property has no effect and will be removed in a future version
+   */
   relative?: boolean;
 }
 
-export function GoAPopover({
+export function GoabPopover({
   target,
   testId,
   maxWidth,
+  minWidth,
   padded,
   position,
   relative,
@@ -41,14 +46,15 @@ export function GoAPopover({
   mr,
   mb,
   ml,
-}: GoAPopoverProps): JSX.Element {
+}: GoabPopoverProps): JSX.Element {
   return (
     <goa-popover
-      data-testid={testId}
+      testid={testId}
       maxwidth={maxWidth}
-      padded={padded}
+      minwidth={minWidth}
+      padded={typeof padded === "undefined" ? undefined : padded ? "true" : "false"}
       position={position}
-      relative={relative}
+      relative={relative ? "true" : undefined}
       mt={mt}
       mr={mr}
       mb={mb}
@@ -60,4 +66,4 @@ export function GoAPopover({
   );
 }
 
-export default GoAPopover;
+export default GoabPopover;

@@ -1,17 +1,18 @@
-import { Margins } from "../../common/styling";
+import {
+  GoabButtonGroupAlignment,
+  GoabButtonGroupGap,
+  Margins,
+} from "@abgov/ui-components-common";
 
-export type GoAButtonGroupAlignment = "start" | "end" | "center";
-export type GoAButtonGroupGap = "relaxed" | "compact";
-
-// legacy naming
-export type Gap = GoAButtonGroupGap;
+import type { JSX } from "react";
 
 interface WCProps extends Margins {
-  alignment: GoAButtonGroupAlignment;
-  gap?: GoAButtonGroupGap;
+  alignment: GoabButtonGroupAlignment;
+  gap?: GoabButtonGroupGap;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -20,14 +21,14 @@ declare global {
   }
 }
 
-export interface GoAButtonGroupProps extends Margins {
-  alignment: GoAButtonGroupAlignment;
-  gap?: GoAButtonGroupGap;
+export interface GoabButtonGroupProps extends Margins {
+  alignment: GoabButtonGroupAlignment;
+  gap?: GoabButtonGroupGap;
   testId?: string;
   children?: React.ReactNode;
 }
 
-export function GoAButtonGroup({
+export function GoabButtonGroup({
   alignment,
   gap,
   testId,
@@ -36,7 +37,7 @@ export function GoAButtonGroup({
   mr,
   mb,
   ml,
-}: GoAButtonGroupProps): JSX.Element {
+}: GoabButtonGroupProps): JSX.Element {
   return (
     <goa-button-group
       alignment={alignment}
@@ -45,11 +46,11 @@ export function GoAButtonGroup({
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-button-group>
   );
 }
 
-export default GoAButtonGroup;
+export default GoabButtonGroup;

@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 interface WCProps {
   heading: string;
   backgroundurl?: string;
@@ -5,9 +6,10 @@ interface WCProps {
   maxcontentwidth?: string;
   backgroundcolor?: string;
   textcolor?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -16,7 +18,7 @@ declare global {
   }
 }
 
-export interface GoAHeroBannerProps {
+export interface GoabHeroBannerProps {
   heading: string;
   backgroundUrl?: string;
   minHeight?: string;
@@ -27,7 +29,7 @@ export interface GoAHeroBannerProps {
   textColor?: string;
 }
 
-export function GoAHeroBanner({
+export function GoabHeroBanner({
   heading,
   backgroundUrl,
   minHeight,
@@ -36,7 +38,7 @@ export function GoAHeroBanner({
   textColor,
   children,
   testId,
-}: GoAHeroBannerProps): JSX.Element {
+}: GoabHeroBannerProps): JSX.Element {
   return (
     <goa-hero-banner
       heading={heading}
@@ -45,11 +47,11 @@ export function GoAHeroBanner({
       maxcontentwidth={maxContentWidth}
       backgroundcolor={backgroundColor}
       textcolor={textColor}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-hero-banner>
   );
 }
 
-export default GoAHeroBanner;
+export default GoabHeroBanner;

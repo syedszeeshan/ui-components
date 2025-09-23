@@ -1,11 +1,14 @@
-import { Margins, Spacing } from "../../common/styling";
+import { Margins, Spacing } from "@abgov/ui-components-common";
+
+import type { JSX } from "react";
 
 interface WCProps extends Margins {
   gap?: Spacing;
   minchildwidth: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -14,14 +17,14 @@ declare global {
   }
 }
 
-export interface GoAGridProps extends Margins {
+export interface GoabGridProps extends Margins {
   gap?: Spacing;
   minChildWidth: string;
   testId?: string;
   children?: React.ReactNode;
 }
 
-export function GoAGrid({
+export function GoabGrid({
   gap,
   minChildWidth,
   mt,
@@ -30,20 +33,20 @@ export function GoAGrid({
   ml,
   testId,
   children,
-}: GoAGridProps): JSX.Element {
+}: GoabGridProps): JSX.Element {
   return (
     <goa-grid
       gap={gap}
-      mt={mt}
       minchildwidth={minChildWidth}
+      mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-grid>
   );
 }
 
-export default GoAGrid;
+export default GoabGrid;

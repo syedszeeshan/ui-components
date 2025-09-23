@@ -1,17 +1,24 @@
-import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
+import { ReactNode, useEffect, useRef, type JSX } from "react";
 
-export type GoAHeadingSize = "small" | "medium";
+import type {
+  GoabAccordionHeadingSize,
+  GoabAccordionIconPosition,
+  Margins,
+} from "@abgov/ui-components-common";
 
 interface WCProps extends Margins {
-  open?: boolean;
-  headingSize?: GoAHeadingSize;
+  ref: React.RefObject<HTMLElement | null>;
+  open?: string;
+  headingsize?: GoabAccordionHeadingSize;
   heading: string;
-  secondaryText?: string;
+  secondarytext?: string;
   headingContent?: ReactNode;
+  maxwidth?: string;
+  testid?: string;
+  iconposition?: GoabAccordionIconPosition;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -20,36 +27,60 @@ declare global {
   }
 }
 
-export interface GoAAccordionProps extends Margins {
+export interface GoabAccordionProps extends Margins {
   open?: boolean;
-  headingSize?: GoAHeadingSize;
+  headingSize?: GoabAccordionHeadingSize;
   secondaryText?: string;
   heading: string;
   headingContent?: ReactNode;
-  testid?: string;
-  children: ReactNode;
+  maxWidth?: string;
+  testId?: string;
+  iconPosition?: GoabAccordionIconPosition;
+  onChange?: (open: boolean) => void;
+  children?: ReactNode;
 }
 
-export function GoAAccordion({
+export function GoabAccordion({
   open,
   heading,
   headingSize,
   secondaryText,
   headingContent,
-  testid,
+  iconPosition,
+  maxWidth,
+  testId,
+  onChange,
   children,
   mt,
   mr,
   mb,
   ml,
-}: GoAAccordionProps): JSX.Element {
+}: GoabAccordionProps): JSX.Element {
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (element && onChange) {
+      const handler = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        onChange(customEvent.detail.open);
+      };
+      element.addEventListener("_change", handler);
+      return () => {
+        element.removeEventListener("_change", handler);
+      };
+    }
+  }, [onChange]);
   return (
     <goa-accordion
-      open={open}
-      headingSize={headingSize}
+      ref={ref}
+      open={open ? "true" : undefined}
+      headingsize={headingSize}
       heading={heading}
-      secondaryText={secondaryText}
-      data-testid={testid}
+      secondarytext={secondaryText}
+      iconposition={iconPosition}
+      maxwidth={maxWidth}
+      testid={testId}
       mt={mt}
       mr={mr}
       mb={mb}
@@ -61,4 +92,4 @@ export function GoAAccordion({
   );
 }
 
-export default GoAAccordion;
+export default GoabAccordion;

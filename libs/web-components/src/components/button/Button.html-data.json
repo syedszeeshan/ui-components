@@ -32,6 +32,9 @@
         },
         {
           "name": "destructive"
+        },
+        {
+          "name": "inverse"
         }
       ],
       "default": "normal"
@@ -54,6 +57,11 @@
       "description": "Show an icon to the right of the text",
       "type": "string",
       "valueSet": "goaIconType"
+    },
+    {
+      "name": "width",
+      "description": "Set the width of the button",
+      "type": "string"
     },
     {
       "name": "_click",

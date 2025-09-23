@@ -1,27 +1,32 @@
-import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
-import { GoAIconType } from "../icon/icon";
+import {
+  GoabDropdownOnChangeDetail,
+  GoabIconType,
+  Margins,
+} from "@abgov/ui-components-common";
+import { useEffect, useRef, type JSX } from "react";
 
 interface WCProps extends Margins {
-  ref: React.MutableRefObject<HTMLElement | null>;
+  ref: React.RefObject<HTMLElement | null>;
   arialabel?: string;
   arialabelledby?: string;
-  disabled?: boolean;
-  error?: boolean;
-  filterable?: boolean;
+  disabled?: string;
+  error?: string;
+  filterable?: string;
   leadingicon?: string;
   maxheight?: string;
-  multiselect?: boolean;
+  multiselect?: string;
   name?: string;
-  native?: boolean;
+  native?: string;
   placeholder?: string;
   value?: string;
   width?: string;
-  relative?: boolean;
+  relative?: string;
   id?: string;
+  autocomplete?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -31,10 +36,10 @@ declare global {
   }
 }
 
-export interface GoADropdownProps extends Margins {
+export interface GoabDropdownProps extends Margins {
   name?: string;
   value?: string[] | string;
-  onChange: (name: string, values: string[] | string) => void;
+  onChange?: (detail: GoabDropdownOnChangeDetail) => void;
 
   // optional
   ariaLabel?: string;
@@ -44,13 +49,17 @@ export interface GoADropdownProps extends Margins {
   disabled?: boolean;
   error?: boolean;
   filterable?: boolean;
-  leadingIcon?: GoAIconType;
+  leadingIcon?: GoabIconType;
   maxHeight?: string;
   multiselect?: boolean;
   native?: boolean;
   placeholder?: string;
   testId?: string;
   width?: string;
+  autoComplete?: string;
+  /***
+   * @deprecated This property has no effect and will be removed in a future version
+   */
   relative?: boolean;
 }
 
@@ -64,20 +73,24 @@ function stringify(value: string | string[] | undefined): string {
   return JSON.stringify(value);
 }
 
-export function GoADropdown(props: GoADropdownProps): JSX.Element {
+export function GoabDropdown(props: GoabDropdownProps): JSX.Element {
   const el = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!el.current) {
       return;
     }
     const current = el.current;
-    const handler = (e: unknown) => {
-      const { name, value, values } = (e as CustomEvent).detail;
-      props.onChange(name, props.multiselect ? values : value);
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<GoabDropdownOnChangeDetail>).detail;
+      props.onChange?.(detail);
     };
-    current.addEventListener("_change", handler);
+    if (props.onChange) {
+      current.addEventListener("_change", handler);
+    }
     return () => {
-      current.removeEventListener("_change", handler);
+      if (props.onChange) {
+        current.removeEventListener("_change", handler);
+      }
     };
   }, [el, props]);
 
@@ -88,21 +101,22 @@ export function GoADropdown(props: GoADropdownProps): JSX.Element {
       value={stringify(props.value)}
       arialabel={props.ariaLabel}
       arialabelledby={props.ariaLabelledBy}
-      disabled={props.disabled}
-      error={props.error}
-      filterable={props.filterable}
+      disabled={props.disabled ? "true" : undefined}
+      error={props.error ? "true" : undefined}
+      filterable={props.filterable ? "true" : undefined}
       leadingicon={props.leadingIcon}
       maxheight={props.maxHeight}
       mb={props.mb}
       ml={props.ml}
       mr={props.mr}
       mt={props.mt}
-      multiselect={props.multiselect}
-      native={props.native}
+      multiselect={props.multiselect ? "true" : undefined}
+      native={props.native ? "true" : undefined}
       placeholder={props.placeholder}
-      data-testid={props.testId}
+      testid={props.testId}
       width={props.width}
-      relative={props.relative}
+      relative={props.relative ? "true" : undefined}
+      autocomplete={props.autoComplete}
       id={props.id}
     >
       {props.children}
@@ -110,4 +124,4 @@ export function GoADropdown(props: GoADropdownProps): JSX.Element {
   );
 }
 
-export default GoADropdown;
+export default GoabDropdown;

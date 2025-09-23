@@ -1,10 +1,17 @@
-<svelte:options customElement="goa-button" />
+<svelte:options customElement={{
+  tag: "goa-button",
+  props: {
+    actionArg: { type: "String", attribute: "action-arg"},
+    actionArgs: { type: "Object", attribute: "action-args"},
+  }
+}} />
 
 <script lang="ts">
   import { onMount } from "svelte";
+
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
-  import { typeValidator, toBoolean } from "../../common/utils";
+  import { typeValidator, toBoolean, dispatch, relay } from "../../common/utils";
   import type { GoAIconType } from "../icon/Icon.svelte";
 
   // Validators
@@ -20,7 +27,7 @@
   );
   const [Variants, validateVariant] = typeValidator(
     "Button variant",
-    ["normal", "destructive"],
+    ["normal", "destructive", "inverse"],
     true,
   );
 
@@ -37,51 +44,80 @@
   export let leadingicon: GoAIconType | null = null;
   export let trailingicon: GoAIconType | null = null;
   export let testid: string = "";
+  export let width: string = "";
 
   export let mt: Spacing = null;
   export let mr: Spacing = null;
   export let mb: Spacing = null;
   export let ml: Spacing = null;
 
+  export let action: string = "";
+  export let actionArg: string = "";
+  export let actionArgs: Record<string, unknown> = {};
+
+  // ========
+  // Reactive
+  // ========
+
   $: isDisabled = toBoolean(disabled);
   $: isButtonDark = type === "primary" || type === "start";
 
-  function clickHandler(_e: Event) {
-    // TODO: use e.target??
-    if (!isDisabled) {
-      // @ts-expect-error
-      this.dispatchEvent(
-        new CustomEvent("_click", { composed: true, bubbles: true }),
-      );
-    }
-  }
+  // =====
+  // Hooks
+  // =====
 
   onMount(() => {
     validateType(type);
     validateSize(size);
     validateVariant(variant);
   });
+
+  // =========
+  // Functions
+  // =========
+
+  function clickHandler(e: Event) {
+    if (isDisabled) {
+      return;
+    }
+    if (e.target) {
+      dispatch(e.target as Element, "_click", null, { bubbles: true });
+    }
+    if (action) {
+      dispatch(e.target as Element, action, actionArg || actionArgs, { bubbles: true });
+    }
+  }
 </script>
 
 <button
   class="{type} {size} {variant}"
-  class:leading={leadingicon}
-  class:trailing={trailingicon || type === "start"}
-  style={calculateMargin(mt, mr, mb, ml)}
-  on:click={clickHandler}
+  style={`
+      ${calculateMargin(mt, mr, mb, ml)};
+      --width: ${width};
+    `}
   disabled={isDisabled}
   on:click={clickHandler}
   data-testid={testid}
-  type={type == "submit" ? type : "button"}
+  type={type === "submit" ? type : "button"}
 >
   {#if type === "start"}
     <span class="text">
       <slot />
     </span>
-    <goa-icon id="trailing-icon" type="arrow-forward" inverted="true" />
+    <goa-icon
+      id="trailing-icon"
+      size="4"
+      type="arrow-forward"
+      inverted="true"
+    />
   {:else}
     {#if leadingicon}
-      <goa-icon id="leading-icon" type={leadingicon} inverted={isButtonDark} />
+      <goa-icon
+        id="leading-icon"
+        size="3"
+        type={leadingicon}
+        inverted={isButtonDark}
+      />
     {/if}
     <span class="text">
       <slot />
@@ -89,6 +125,7 @@
     {#if trailingicon}
       <goa-icon
         id="trailing-icon"
+        size="3"
         type={trailingicon}
         inverted={isButtonDark}
       />
@@ -97,39 +134,34 @@
 </button>
 
 <style>
-  :host {
-    --button-height: 2.625rem; /* 42px */
-    --button-height-compact: 2rem; /* 32px */
-    --button-height-tall: 3.25rem; /* 52px */
-
-    box-sizing: border-box;
-    font-family: var(--goa-font-family-sans);
-  }
-
   button {
     display: inline-flex;
     box-sizing: border-box;
-    border-radius: 0.25rem;
-    border: 2px solid var(--goa-color-interactive-default);
-    box-sizing: border-box;
+    border-radius: var(--goa-button-border-radius);
     cursor: pointer;
-    font-family: var(--goa-font-family-sans);
-    font-size: var(--goa-font-size-5);
-    font-weight: 400;
-    height: var(--button-height);
-    letter-spacing: var(--goa-letter-spacing-button);
-    line-height: 100%;
-    padding: 0 0.75rem;
+    font: var(--goa-button-text);
+    height: var(--goa-button-height);
+    letter-spacing: var(--goa-button-letter-spacing);
+    padding: 0 var(--goa-button-padding-lr);
     white-space: nowrap;
-
-    /* for leading and trailing icon vertical alignment */
-    gap: 0.5rem;
-    align-items: center;
+    gap: var(--goa-button-gap);
+    align-items: center; /* for leading and trailing icon vertical alignment */
     justify-content: center;
     transition:
       transform 0.1s ease-in-out,
       background-color 0.2s ease-in-out,
-      border-color 0.2s ease-in-out;
+      border-color 0.2s ease-in-out,
+      color 0.2s ease-in-out;
+    width: var(--width, auto);
+  }
+
+  button:active {
+    transform: translateY(2px);
+  }
+
+  button:focus-visible {
+    box-shadow: 0 0 0 var(--goa-border-width-l)
+      var(--goa-color-interactive-focus);
   }
 
   @media (--mobile) {
@@ -140,150 +172,196 @@
       width: 100%;
       display: flex;
     }
+    button.tertiary {
+      background-color: var(--goa-button-tertiary-color-bg-mobile) !important;
+    }
+    button.tertiary:hover {
+      background-color: var(--goa-color-greyscale-200) !important;
+    }
+    button.tertiary.inverse {
+      background-color: var(--goa-button-tertiary-color-bg) !important;
+    }
+    button.tertiary.inverse:hover {
+      background-color: var(--goa-color-greyscale-200) !important;
+    }
+  }
+
+  .icon {
+    /* Default icon size */
+    width: var(--goa-button-icon-size);
+    height: var(--goa-button-icon-size);
+  }
+  .icon.compact {
+    /* Compact icon size */
+    width: var(--goa-button-compact-icon-size);
+    height: var(--goa-button-compact-icon-size);
   }
 
   .text {
-    padding-bottom: var(
-      --font-valign-fix,
-      0
-    ); /* acumin font requires this to allow for vertical alignment  */
-  }
-
-  button:disabled {
-    pointer-events: none;
-    opacity: 0.5;
+    padding-bottom: 0.2rem; /* acumin font requires this to allow for vertical alignment  */
   }
 
   button.compact {
-    height: var(--button-height-compact);
-    font-size: var(--goa-font-size-4);
-    padding-left: var(--goa-space-xs);
-    padding-right: var(--goa-space-xs);
+    height: var(--goa-button-height-compact);
+    font: var(--goa-button-text-compact);
+    padding: var(--goa-button-padding-lr-compact);
+    gap: var(--goa-button-compact-gap);
   }
 
   button.start {
-    height: var(--button-height-tall);
-    font-weight: var(--goa-font-weight-bold);
+    height: var(--goa-button-height-start);
+    font: var(--goa-button-text-start);
+    padding: var(--goa-button-padding-lr-start);
+    letter-spacing: var(--goa-button-letter-spacing);
   }
 
   /* Primary */
   button.start,
   button.submit,
   button.primary {
-    border: 2px solid var(--goa-color-interactive-default);
-    background-color: var(--goa-color-interactive-default);
-    color: var(--goa-color-text-light);
+    border: var(--goa-button-primary-border);
+    background-color: var(--goa-button-primary-color-bg);
+    color: var(--goa-button-primary-color-text);
   }
-
-  button.start:hover,
-  button.submit:hover,
-  button.primary:hover {
-    border-color: var(--goa-color-interactive-hover);
-    background-color: var(--goa-color-interactive-hover);
+  button:hover {
+    background-color: var(--goa-button-primary-hover-color-bg);
   }
-
-  button.start:focus,
-  button.start:active,
-  button.submit:focus,
-  button.submit:active,
-  button.primary:focus,
-  button.primary:active {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
-    border-color: var(--goa-color-interactive-hover);
-    background-color: var(--goa-color-interactive-hover);
+  button:focus-visible,
+  button:active {
+    border-color: var(--goa-button-primary-hover-border);
+    background-color: var(--goa-button-primary-focus-color-bg);
     outline: none;
   }
 
   /* Secondary */
-
   button.secondary {
-    border: 2px solid var(--goa-color-interactive-default);
-    background-color: var(--goa-color-greyscale-white);
-    color: var(--goa-color-interactive-default);
+    border: var(--goa-button-secondary-border);
+    background-color: var(--goa-button-secondary-color-bg);
+    color: var(--goa-button-secondary-color-text);
   }
-
   button.secondary:hover {
-    border-color: var(--goa-color-interactive-hover);
-    color: var(--goa-color-interactive-hover);
-    background-color: var(--goa-color-greyscale-100);
+    border: var(--goa-button-secondary-hover-border);
+    color: var(--goa-button-secondary-hover-color-text);
+    background-color: var(--goa-button-secondary-hover-color-bg);
   }
-
-  button.secondary:focus,
+  button.secondary:focus-visible,
   button.secondary:active {
-    border-color: var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
-    background-color: var(--goa-color-greyscale-100);
+    border: var(--goa-button-secondary-focus-border);
+    background-color: var(--goa-button-secondary-focus-color-bg);
+    color: var(--goa-button-secondary-focus-color-text);
     outline: none;
   }
 
   /* Tertiary */
-
   button.tertiary {
-    border: 1px solid transparent;
-    background-color: transparent;
-    color: var(--goa-color-interactive-default);
+    border: var(--goa-button-tertiary-border);
+    background-color: var(--goa-button-tertiary-color-bg);
+    color: var(--goa-button-tertiary-color-text);
     text-decoration: underline;
   }
-
   button.tertiary:hover {
-    border-color: var(--goa-color-greyscale-100);
-    color: var(--goa-color-interactive-hover);
-    background-color: var(--goa-color-greyscale-100);
+    background-color: var(--goa-button-tertiary-hover-color-bg);
+    color: var(--goa-button-tertiary-hover-color-text);
   }
-
-  button.tertiary:focus,
+  button.tertiary:focus-visible,
   button.tertiary:active {
-    border-color: var(--goa-color-greyscale-100);
-    background-color: var(--goa-color-greyscale-100);
-    color: var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+    background-color: var(--goa-button-tertiary-focus-color-bg);
+    color: var(--goa-button-tertiary-focus-color-text);
     outline: none;
   }
 
+  /* Destructive Primary */
   .submit.destructive,
   .primary.destructive {
-    color: var(--goa-color-greyscale-white);
-    background-color: var(--goa-color-emergency-default);
-    border-color: var(--goa-color-emergency-default);
+    background-color: var(--goa-button-primary-destructive-color-bg);
   }
   .submit.destructive:hover,
   .primary.destructive:hover {
-    background-color: var(--goa-color-emergency-dark);
-    border-color: var(--goa-color-emergency-dark);
+    background-color: var(--goa-button-primary-destructive-hover-color-bg);
   }
-  .submit.destructive:focus,
-  .primary.destructive:focus,
+  .submit.destructive:focus-visible,
+  .submit.destructive:active,
+  .primary.destructive:focus-visible,
   .primary.destructive:active {
-    background-color: var(--goa-color-emergency-dark);
-    border-color: var(--goa-color-emergency-dark);
+    background-color: var(--goa-button-primary-destructive-focus-color-bg);
   }
 
+  /* Destructive Secondary */
   .secondary.destructive {
-    color: var(--goa-color-emergency-default);
-    border-color: var(--goa-color-emergency-default);
-    background-color: var(--goa-color-greyscale-white);
+    color: var(--goa-button-secondary-destructive-color-text);
+    border: var(--goa-button-secondary-destructive-border);
   }
   .secondary.destructive:hover {
-    border-color: var(--goa-color-emergency-dark);
-    color: var(--goa-color-emergency-dark);
-    background-color: var(--goa-color-greyscale-white);
+    color: var(--goa-button-secondary-destructive-hover-color-text);
+    border: var(--goa-button-secondary-destructive-hover-border);
   }
-  .secondary.destructive:focus,
+  .secondary.destructive:focus-visible,
   .secondary.destructive:active {
-    color: var(--goa-color-emergency-dark);
-    border-color: var(--goa-color-emergency-dark);
-    background-color: var(--goa-color-greyscale-white);
+    color: var(--goa-button-secondary-destructive-focus-color-text);
+    border: var(--goa-button-secondary-destructive-focus-border);
   }
 
+  /* Destructive Tertiary */
   .tertiary.destructive {
-    color: var(--goa-color-emergency-default);
-    border-color: transparent;
+    color: var(--goa-button-tertiary-destructive-color-text);
   }
   .tertiary.destructive:hover {
-    color: var(--goa-color-emergency-dark);
+    color: var(--goa-button-tertiary-destructive-hover-color-text);
   }
-  .tertiary.destructive:focus,
+  .tertiary.destructive:focus-visible,
   .tertiary.destructive:active {
-    color: var(--goa-color-emergency-dark);
+    color: var(--goa-button-tertiary-destructive-focus-color-text);
+  }
+
+  /* Inverse Primary */
+  .submit.inverse,
+  .primary.inverse {
+    background-color: var(--goa-button-primary-inverse-color-bg);
+    color: var(--goa-button-primary-inverse-color-text);
+  }
+  .submit.inverse:hover,
+  .primary.inverse:hover {
+    background-color: var(--goa-button-primary-inverse-hover-color-bg);
+    color: var(--goa-button-primary-inverse-hover-color-text);
+  }
+  .submit.inverse:focus-visible,
+  .submit.inverse:active,
+  .primary.inverse:focus-visible,
+  .primary.inverse:active {
+    background-color: var(--goa-button-primary-inverse-focus-color-bg);
+  }
+
+  /* Inverse Secondary */
+  .secondary.inverse {
+    color: var(--goa-button-secondary-inverse-color-text);
+    border: var(--goa-button-secondary-inverse-border);
+    background-color: var(--goa-button-secondary-inverse-color-bg);
+  }
+  .secondary.inverse:hover {
+    color: var(--goa-button-secondary-inverse-hover-color-text);
+    border: var(--goa-button-secondary-inverse-hover-border);
+  }
+  .secondary.inverse:focus-visible,
+  .secondary.inverse:active {
+    color: var(--goa-button-secondary-inverse-focus-color-text);
+    border: var(--goa-button-secondary-inverse-focus-border);
+  }
+
+  /* Inverse Tertiary */
+  .tertiary.inverse {
+    color: var(--goa-button-tertiary-inverse-color-text);
+  }
+  .tertiary.inverse:hover {
+    color: var(--goa-button-tertiary-inverse-hover-color-text);
+  }
+  .tertiary.inverse:focus-visible,
+  .tertiary.inverse:active {
+    color: var(--goa-button-tertiary-inverse-focus-color-text);
+  }
+
+  /* Disabled */
+  button:disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
 </style>

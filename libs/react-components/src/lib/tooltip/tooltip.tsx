@@ -1,17 +1,19 @@
-import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
-
-export type GoATooltipPosition = "top" | "bottom" | "left" | "right";
-export type GoATooltipHorizontalAlignment = "left" | "right" | "center";
+import {
+  GoabTooltipHorizontalAlignment,
+  GoabTooltipPosition,
+  Margins,
+} from "@abgov/ui-components-common";
+import { ReactNode, type JSX } from "react";
 
 /* eslint-disable-next-line */
 interface WCProps extends Margins {
-  position?: GoATooltipPosition;
+  position?: GoabTooltipPosition;
   content?: string;
-  halign?: GoATooltipHorizontalAlignment;
+  testid?: string;
+  halign?: GoabTooltipHorizontalAlignment;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -21,21 +23,21 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoATooltipProps extends Margins {
-  position?: GoATooltipPosition;
+export interface GoabTooltipProps extends Margins {
+  position?: GoabTooltipPosition;
   content?: string;
-  hAlign?: GoATooltipHorizontalAlignment;
+  hAlign?: GoabTooltipHorizontalAlignment;
   testId?: string;
   children?: ReactNode;
 }
 
-export function GoATooltip(props: GoATooltipProps): JSX.Element {
+export function GoabTooltip(props: GoabTooltipProps): JSX.Element {
   return (
     <goa-tooltip
       position={props.position}
       content={props.content}
       halign={props.hAlign}
-      data-testid={props.testId}
+      testid={props.testId}
       mt={props.mt}
       mr={props.mr}
       mb={props.mb}
@@ -46,4 +48,4 @@ export function GoATooltip(props: GoATooltipProps): JSX.Element {
   );
 }
 
-export default GoATooltip;
+export default GoabTooltip;

@@ -2,16 +2,22 @@
 
 <script lang="ts">
   import { onMount, tick } from "svelte";
+  import { getSlottedChildren } from "../../common/utils";
+
+  export let testid: string = "";
 
   let rootEl: HTMLElement;
   let children: HTMLLinkElement[] = [];
 
+  function handleClick(e: Event, originalAnchor: HTMLLinkElement) {
+    e.preventDefault();
+    e.stopPropagation();
+    originalAnchor.click();
+  }
+
   onMount(async () => {
     await tick();
-    children = rootEl
-      .querySelector("slot")
-      .assignedElements() as HTMLLinkElement[];
-
+    children = getSlottedChildren(rootEl) as HTMLLinkElement[];
     const isValid = children
       .map((child) => child.hasAttribute("href"))
       .reduce((sum: boolean, valid: boolean) => {
@@ -27,14 +33,19 @@
 </script>
 
 <!-- Template -->
-<section bind:this={rootEl}>
+<section bind:this={rootEl} data-testid={testid}>
   <div class="hidden">
     <slot />
   </div>
 
   <ul>
     {#each children as child}
-      <li><a href={child.href}>{child.innerHTML}</a></li>
+      <li>
+        <a
+          href={child.href}
+          on:click={(e) => handleClick(e, child)}
+        >{child.innerHTML}</a>
+      </li>
     {/each}
   </ul>
 </section>
@@ -47,16 +58,38 @@
   ul {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--goa-space-l);
-    padding-left: 0;
+    gap: var(--goa-footer-meta-links-gap);
+    padding: 0;
+    margin: 8px 0px 0px 0px;
+    list-style: none;
   }
 
   li {
     list-style-type: none;
   }
 
+  @media (--mobile) {
+    ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--goa-footer-meta-links-gap-small-screen);
+      padding: 0;
+      margin: 0px 0px 0px 0px;
+    }
+  }
+
   a {
-    color: var(--goa-color-text-default);
+    color: var(--goa-footer-color-links);
+    cursor: pointer;
     white-space: nowrap;
+  }
+
+  a:hover {
+    color: var(--goa-footer-color-links-hover);
+  }
+
+  a:focus-visible {
+    outline: var(--goa-footer-link-focus);
+    border-radius: 2px;
   }
 </style>

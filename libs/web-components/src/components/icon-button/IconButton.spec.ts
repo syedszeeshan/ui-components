@@ -12,6 +12,7 @@ describe("IconButton", () => {
         mr: "m",
         mb: "l",
         ml: "xl",
+        arialabel: "icon button test"
       });
       const iconButton = await baseElement.findByTestId("iconButton-test");
 
@@ -20,11 +21,12 @@ describe("IconButton", () => {
       expect(iconButton).toHaveStyle("margin-right:var(--goa-space-m)");
       expect(iconButton).toHaveStyle("margin-bottom:var(--goa-space-l)");
       expect(iconButton).toHaveStyle("margin-left:var(--goa-space-xl)");
+      expect(iconButton).toHaveAttribute("aria-label", "icon button test");
     });
   });
 
   describe("Variants", () => {
-    ["color", "nocolor", "dark", "destructive"].forEach(variant => {
+    ["color", "nocolor", "light", "dark", "destructive"].forEach(variant => {
       it(`renders the ${variant} variant`, async () => {
         const el = render(GoAIconButton, {
           testid: "iconButton-test", icon: "ellipsis",

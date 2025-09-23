@@ -1,15 +1,16 @@
+import { GoabPaginationOnChangeDetail, Margins } from "@abgov/ui-components-common";
 import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
 
 interface WCProps extends Margins {
-  ref?: React.MutableRefObject<HTMLElement | undefined>;
+  ref?: React.RefObject<HTMLElement | null>;
   itemcount: number;
   perpagecount?: number;
   pagenumber: number;
   variant?: "all" | "links-only";
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -19,20 +20,20 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAPaginationProps extends Margins {
+export interface GoabPaginationProps extends Margins {
   itemCount: number;
   perPageCount?: number;
   pageNumber: number;
   variant?: "all" | "links-only";
-  onChange: (page: number) => void;
+  onChange: (detail: GoabPaginationOnChangeDetail) => void;
   testId?: string;
 }
 
 // legacy
-export type PaginationProps = GoAPaginationProps;
+export type PaginationProps = GoabPaginationProps;
 
-export function GoAPagination({onChange, ...props}: GoAPaginationProps) {
-  const ref = useRef<HTMLElement>();
+export function GoabPagination({ onChange, ...props }: GoabPaginationProps) {
+  const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!ref.current) {
@@ -40,8 +41,8 @@ export function GoAPagination({onChange, ...props}: GoAPaginationProps) {
     }
     const current = ref.current;
     const changeListener = (e: Event) => {
-      const { page } = (e as CustomEvent).detail;
-      onChange(page);
+      const detail = (e as CustomEvent<GoabPaginationOnChangeDetail>).detail;
+      onChange(detail);
     };
 
     current.addEventListener("_change", changeListener);
@@ -61,9 +62,9 @@ export function GoAPagination({onChange, ...props}: GoAPaginationProps) {
       mb={props.mb}
       ml={props.ml}
       mr={props.mr}
-      data-testid={props.testId}
+      testid={props.testId}
     />
   );
 }
 
-export default GoAPagination;
+export default GoabPagination;

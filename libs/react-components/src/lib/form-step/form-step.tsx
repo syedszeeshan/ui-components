@@ -1,30 +1,26 @@
-export type GoAFormStepStatusType = "complete" | "incomplete";
+import { GoabFormStepStatus } from "@abgov/ui-components-common";
 
 interface WCProps {
   text: string;
-  status?: GoAFormStepStatusType;
+  status?: GoabFormStepStatus;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-form-step": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
-export interface GoAFormStepProps {
+export interface GoabFormStepProps {
   text: string;
-  status?: GoAFormStepStatusType;
+  status?: GoabFormStepStatus;
 }
 
-// legacy name
-export type FormStepProps = GoAFormStepProps;
-
-export function GoAFormStep(props: GoAFormStepProps) {
+export function GoabFormStep(props: GoabFormStepProps) {
   return <goa-form-step text={props.text} status={props.status} />;
 }
 
-export default GoAFormStep;
+export default GoabFormStep;

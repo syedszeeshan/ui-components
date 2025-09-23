@@ -1,61 +1,60 @@
-import { ReactNode, useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
-import { GoAIconType } from "../icon/icon";
-
-export type GoAButtonType =
-  | "primary"
-  | "submit"
-  | "secondary"
-  | "tertiary"
-  | "start";
-
-export type GoAButtonSize = "compact" | "normal";
-export type GoAButtonVariant = "normal" | "destructive";
-
-// legacy type names
-export type ButtonType = GoAButtonType;
-export type ButtonSize = GoAButtonSize;
-export type ButtonVariant = GoAButtonVariant;
+import { ReactNode, useEffect, useRef, type JSX } from "react";
+import {
+  GoabButtonSize,
+  GoabButtonType,
+  GoabButtonVariant,
+  GoabIconType,
+  Margins,
+} from "@abgov/ui-components-common";
 
 interface WCProps extends Margins {
-  type?: GoAButtonType;
-  size?: GoAButtonSize;
-  variant?: GoAButtonVariant;
-  disabled?: boolean;
+  type?: GoabButtonType;
+  size?: GoabButtonSize;
+  variant?: GoabButtonVariant;
+  disabled?: string;
   leadingicon?: string;
   trailingicon?: string;
-  ref: React.RefObject<HTMLElement>;
+  width?: string;
+  testid?: string;
+  action?: string;
+  actionArgs?: string;
+  actionArg?: string;
+  ref: React.RefObject<HTMLElement | null>;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-button": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
-export interface GoAButtonProps extends Margins {
-  type?: GoAButtonType;
-  size?: GoAButtonSize;
-  variant?: GoAButtonVariant;
+export interface GoabButtonProps extends Margins {
+  type?: GoabButtonType;
+  size?: GoabButtonSize;
+  variant?: GoabButtonVariant;
   disabled?: boolean;
-  leadingIcon?: GoAIconType;
-  trailingIcon?: GoAIconType;
+  leadingIcon?: GoabIconType;
+  trailingIcon?: GoabIconType;
+  width?: string;
   onClick?: () => void;
   testId?: string;
+  action?: string;
+  actionArgs?: Record<string, unknown>;
+  actionArg?: string;
   children?: ReactNode;
 }
 
-export function GoAButton({
-  disabled = false,
-  type = "primary",
+export function GoabButton({
+  disabled,
+  type,
   size,
   variant,
   leadingIcon,
   trailingIcon,
+  width,
   testId,
   children,
   onClick,
@@ -63,8 +62,12 @@ export function GoAButton({
   mr,
   mb,
   ml,
-}: GoAButtonProps): JSX.Element {
+  action,
+  actionArgs,
+  actionArg,
+}: GoabButtonProps): JSX.Element {
   const el = useRef<HTMLElement>(null);
+
   useEffect(() => {
     if (!el.current) {
       return;
@@ -89,10 +92,14 @@ export function GoAButton({
       type={type}
       size={size}
       variant={variant}
-      disabled={disabled}
+      disabled={disabled ? "true" : undefined}
       leadingicon={leadingIcon}
       trailingicon={trailingIcon}
-      data-testid={testId}
+      width={width}
+      testid={testId}
+      action={action}
+      action-arg={actionArg}
+      action-args={JSON.stringify(actionArgs)}
       mt={mt}
       mr={mr}
       mb={mb}
@@ -103,4 +110,4 @@ export function GoAButton({
   );
 }
 
-export default GoAButton;
+export default GoabButton;

@@ -1,4 +1,9 @@
-<svelte:options customElement="goa-table" />
+<svelte:options customElement={{
+  tag: "goa-table",
+  props: {
+    variant: { reflect: true }
+  }
+}} />
 
 <script lang="ts">
   import { onMount, tick } from "svelte";
@@ -20,6 +25,7 @@
   export let width: string = "";
   export let stickyheader: string = "false";
   export let variant: Variant = "normal";
+  export let testid: string = "";
 
   export let mt: Spacing = null;
   export let mr: Spacing = null;
@@ -71,7 +77,6 @@
         // relay state to all children
         headings.forEach((child) => {
           if (child.getAttribute("name") === sortBy) {
-            // @ts-expect-error
             const direction = child["direction"] as GoATableSortDirection;
             // starting direction is asc
             const newDirection = direction === "asc" ? "desc" : "asc";
@@ -90,7 +95,6 @@
 
       // dispatch the default sort params if initially set
       const initialSortBy = heading.getAttribute("name");
-      // @ts-ignore
       const initialDirection = heading["direction"] as GoATableSortDirection;
       if (initialSortBy && initialDirection && initialDirection !== "none") {
         setTimeout(() => {
@@ -123,6 +127,7 @@
     ${`width: ${width || "100%"};`}
     ${calculateMargin(mt, mr, mb, ml)}
   `}
+  data-testid={testid}
 >
   {#if _isTableRoot}
     <slot />
@@ -135,9 +140,6 @@
 
 <style>
   /* other styles can be found in the assets/css/components.css file */
-  :host {
-    overflow-x: auto;
-  }
   .goatable {
     width: 0;
   }

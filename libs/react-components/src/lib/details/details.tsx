@@ -1,15 +1,16 @@
+import { Margins } from "@abgov/ui-components-common";
 import { ReactNode } from "react";
-import { Margins } from "../../common/styling";
 
 interface WCProps extends Margins {
   heading: string;
-  open?: boolean;
+  open?: string;
+  maxwidth?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-details": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -17,19 +18,21 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoADetailsProps extends Margins {
+export interface GoabDetailsProps extends Margins {
   heading: string;
   open?: boolean;
+  maxWidth?: string;
+  testId?: string;
   children: ReactNode;
 }
 
-export type DetailsProps = GoADetailsProps;
-
-export function GoADetails(props: GoADetailsProps) {
+export function GoabDetails(props: GoabDetailsProps) {
   return (
     <goa-details
       heading={props.heading}
-      open={props.open}
+      open={props.open ? "true" : undefined}
+      maxwidth={props.maxWidth}
+      testid={props.testId}
       mt={props.mt}
       mr={props.mr}
       mb={props.mb}
@@ -40,4 +43,4 @@ export function GoADetails(props: GoADetailsProps) {
   );
 }
 
-export default GoADetails;
+export default GoabDetails;

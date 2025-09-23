@@ -1,22 +1,21 @@
+import {
+  GoabTableOnSortDetail,
+  GoabTableVariant,
+  Margins,
+} from "@abgov/ui-components-common";
 import { ReactNode, useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
-
-export type GoATableVariant = "normal" | "relaxed";
-
-// legacy naming
-export type TableVariant = GoATableVariant;
 
 interface WCProps extends Margins {
-  ref?: React.MutableRefObject<HTMLElement | null>;
+  ref?: React.RefObject<HTMLElement | null>;
   width?: string;
-  stickyheader?: boolean;
-  variant?: GoATableVariant;
+  stickyheader?: string;
+  variant?: GoabTableVariant;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-table": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -24,19 +23,19 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoATableProps extends Margins {
+export interface GoabTableProps extends Margins {
   width?: string;
-  onSort?: (sortBy: string, sortDir: number) => void;
+  onSort?: (detail: GoabTableOnSortDetail) => void;
   // stickyHeader?: boolean; TODO: enable this later
-  variant?: GoATableVariant;
+  variant?: GoabTableVariant;
   testId?: string;
   children?: ReactNode;
 }
 
 // legacy name
-export type TableProps = GoATableProps;
+export type TableProps = GoabTableProps;
 
-export function GoATable({onSort, ...props}: GoATableProps) {
+export function GoabTable({ onSort, ...props }: GoabTableProps) {
   const ref = useRef<HTMLTableElement>(null);
   useEffect(() => {
     if (!ref.current) {
@@ -44,8 +43,8 @@ export function GoATable({onSort, ...props}: GoATableProps) {
     }
     const current = ref.current;
     const sortListener = (e: unknown) => {
-      const { sortBy, sortDir } = (e as CustomEvent).detail;
-      onSort?.(sortBy, sortDir);
+      const detail = (e as CustomEvent<GoabTableOnSortDetail>).detail;
+      onSort?.(detail);
     };
 
     current.addEventListener("_sort", sortListener);
@@ -58,9 +57,10 @@ export function GoATable({onSort, ...props}: GoATableProps) {
     <goa-table
       ref={ref}
       width={props.width}
-      stickyheader={false}
+      // TODO: Enable this later if needed
+      // stickyheader={props.stickyHeader ? "true" : undefined}
       variant={props.variant}
-      data-testid={props.testId}
+      testid={props.testId}
       mt={props.mt}
       mb={props.mb}
       ml={props.ml}
@@ -71,4 +71,4 @@ export function GoATable({onSort, ...props}: GoATableProps) {
   );
 }
 
-export default GoATable;
+export default GoabTable;

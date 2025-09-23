@@ -2,24 +2,37 @@
 
 <script lang="ts">
   import type { Spacing } from "../../common/styling";
-  import { typeValidator, toBoolean } from "../../common/utils";
+  import {
+    typeValidator,
+    toBoolean,
+    dispatch,
+    receive,
+    relay,
+  } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
   import { onMount, tick } from "svelte";
+  import {
+    GoARadioItemProps,
+    RadioItemSelectProps,
+  } from "../radio-item/RadioItem.svelte";
+  import {
+    FieldsetSetValueMsg,
+    FieldsetSetValueRelayDetail,
+    FieldsetSetErrorMsg,
+    FieldsetResetErrorsMsg,
+    FormFieldMountRelayDetail,
+    FormFieldMountMsg,
+    FieldsetErrorRelayDetail, FieldsetResetFieldsMsg,
+  } from "../../types/relay-types";
 
   // Validator
-  const [Orientations, validateOrientation] = typeValidator(
-    "Radio group orientation",
-    ["vertical", "horizontal"],
-  );
+  const [Orientations, validateOrientation] = typeValidator("Radio group orientation", [
+    "vertical",
+    "horizontal",
+  ]);
 
   // Type
   type Orientation = (typeof Orientations)[number];
-
-  interface RadioOption {
-    label: string;
-    value: string;
-    description?: string;
-  }
 
   // Public
 
@@ -35,112 +48,203 @@
   export let mb: Spacing = null;
   export let ml: Spacing = null;
 
+  // Private
+  let _error = toBoolean(error);
+  let _prevError = _error;
+
   // Reactive
 
   $: isDisabled = toBoolean(disabled);
-  $: isError = toBoolean(error);
+  $: {
+    isDisabled;
+    bindOptions();
+  }
+
+  // call the method when 'value' is null, except when undefined.
+  $: value !== undefined && setCurrentSelectedOption(value);
+
+  $: {
+    _error = toBoolean(error);
+    if (_error !== _prevError) {
+      dispatch(
+        _rootEl,
+        "error::change",
+        { isError: _error },
+        { bubbles: true },
+      );
+      _prevError = _error;
+    }
+    bindOptions();
+  }
 
   // Private
 
-  let el: HTMLElement;
-  let options: RadioOption[] = [];
-  let _options: Element[] = [];
+  let _rootEl: HTMLElement;
+  let _radioItems: GoARadioItemProps[] = [];
+  let _bindTimeoutId: any;
 
   // Hooks
 
   onMount(async () => {
-    await tick();
     validateOrientation(orientation);
+    await tick(); // for angular to register public form name
+    addRelayListener();
+    sendMountedMessage();
+    getChildren();
 
-    if (!el) return;
-
-    _options = getChildren();
-    bindOptions(_options);
-
-    el.addEventListener("_click",(e: Event) => {
-      onChange((e as CustomEvent).detail);
+    _rootEl.addEventListener("_radioItemChange", (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      onChange(detail.value, detail.label);
     });
   });
 
   // Functions
 
-  /**
-   * Allows the child elements to be obtainable within unit tests
-   * @returns List of child elements
-   */
-  function getChildren(): Element[] {
-    const slot = el.querySelector("slot") as HTMLSlotElement;
-    if (slot) {
-      // default
-      return [...slot.assignedElements()];
-    } else {
-      // unit tests
-      // @ts-expect-error
-      return [...el.children] as Element[];
-    }
+  function addRelayListener() {
+    receive(_rootEl, (action, data) => {
+      switch (action) {
+        case FieldsetSetValueMsg:
+          onSetValue(data as FieldsetSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          setError(data as FieldsetErrorRelayDetail);
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+        case FieldsetResetFieldsMsg:
+          onSetValue({ name, value: ""})
+          break;
+      }
+    });
   }
-  function bindOptions(children: Element[]) {
-    children.forEach((el, index) => {
-      const option = el as unknown as RadioOption & { innerText: string };
-      const optionValue = el.getAttribute("value") || option.value;
-      option.setAttribute("disabled", isDisabled);
-      option.setAttribute("error", isError);
-      option.setAttribute("name", name);
-      option.setAttribute("checked", optionValue === value);
-      option.setAttribute("arialabel", arialabel || name);
-      option.setAttribute("ariadescribedby", `description-${name}-${index}`);
-      option.setAttribute("data-testid", `radio-option-${index}`);
+
+  function setError(detail: FieldsetErrorRelayDetail) {
+    error = detail.error ? "true" : "false";
+  }
+
+  function onSetValue(detail: FieldsetSetValueRelayDetail) {
+    // @ts-expect-error
+    value = detail.value;
+    dispatch(_rootEl, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _rootEl,
+      FormFieldMountMsg,
+      { name, el: _rootEl },
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
+  function getChildren() {
+    _rootEl.addEventListener("radio-item:mounted", (e: Event) => {
+      const radioItemProps = (e as CustomEvent<GoARadioItemProps>).detail;
+      _radioItems = [..._radioItems, radioItemProps];
+
+      // call bindOptions once all children are attained
+      if (_bindTimeoutId) {
+        clearTimeout(_bindTimeoutId);
+      }
+      _bindTimeoutId = setTimeout(() => {
+        bindOptions();
+      }, 1);
+    });
+  }
+
+  function bindOptions() {
+    _radioItems.forEach((props) => {
+      props.el.dispatchEvent(
+        new CustomEvent<Partial<GoARadioItemProps>>("radio-group:init", {
+          composed: true,
+          detail: {
+            disabled: isDisabled,
+            error: _error,
+            description: props.description,
+            name,
+            checked: props.value === value,
+            revealAriaLabel: props.revealAriaLabel,
+          },
+        }),
+      );
     });
   }
 
   /**
    * Handles changing of the radio items
    * @param newValue Selected value
+   * @param newLabel Selected label
    */
-  function onChange(newValue: string) {
+  function onChange(newValue: string, newLabel: string) {
     if (newValue === value) return;
 
     value = newValue;
-    el.dispatchEvent(
+    _rootEl.dispatchEvent(
       new CustomEvent("_change", {
         composed: true,
         bubbles: true,
-        detail: { name, value: value },
+        detail: { name, value: value, optionLabel: newLabel },
       }),
     );
-    setCurrentSelectedOption();
+
+    setCurrentSelectedOption(value);
   }
 
-  function setCurrentSelectedOption() {
-    _options.forEach((el) => {
-      const option = el as unknown as RadioOption & { innerText: string };
-      const optionValue = el.getAttribute("value") || option.value;
-      option.setAttribute("checked", optionValue === value);
+  function setCurrentSelectedOption(value: string) {
+    _radioItems.forEach((item) => {
+      item.el.dispatchEvent(
+        new CustomEvent<RadioItemSelectProps>("radio-group:select", {
+          composed: true,
+          detail: {
+            checked: item.value === value,
+          },
+        }),
+      );
     });
+  }
+
+  function onFocus(e: Event) {
+    dispatch(_rootEl, "help-text::announce", undefined, { bubbles: true });
   }
 </script>
 
 <!-- Html -->
 <div
-  bind:this={el}
+  bind:this={_rootEl}
   style={calculateMargin(mt, mr, mb, ml)}
   class={`goa-radio-group--${orientation}`}
   data-testid={testid}
+  role="radiogroup"
+  aria-label={arialabel}
+  aria-invalid={_error ? "true" : "false"}
+  on:focusin={onFocus}
 >
-    <slot />
+  <slot />
 </div>
 
 <style>
-  :host {
-    box-sizing: border-box;
+
+:host {
     font-family: var(--goa-font-family-sans);
   }
+
   .goa-radio-group--horizontal {
     display: flex;
     flex-direction: row;
+    gap: var(--goa-radio-group-gap-horizontal);
   }
 
   .goa-radio-group--vertical {
-    display: inline-block;
+    display: flex;
+    flex-direction: column;  /* Vertical stacking */
+    gap: var(--goa-radio-group-gap-vertical);  /* Adds spacing */
+    width: 100%;
+  }
+
+  /* Focus styles */
+  .goa-radio-group--horizontal:focus,
+  .goa-radio-group--vertical:focus {
+    outline: none;
   }
 </style>

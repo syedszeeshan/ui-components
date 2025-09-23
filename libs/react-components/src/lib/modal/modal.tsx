@@ -1,28 +1,27 @@
-import { ReactElement, ReactNode, RefObject, useEffect, useRef } from "react";
-
-export type GoAModalTransition = "fast" | "slow" | "none";
-export type GoAModalCalloutVariant =
-  | "information"
-  | "important"
-  | "emergency"
-  | "success"
-  | "event";
-
-// leagcy type names
-export type ModalTransition = GoAModalTransition;
-export type CalloutVariant = GoAModalCalloutVariant;
+import {
+  GoabModalCalloutVariant,
+  GoabModalRole,
+  GoabModalTransition,
+} from "@abgov/ui-components-common";
+import { ReactElement, ReactNode, RefObject, useEffect, useRef, type JSX } from "react";
 
 interface WCProps {
-  ref: RefObject<HTMLElement>;
+  ref: RefObject<HTMLElement | null>;
   heading?: ReactNode;
-  open?: boolean;
+  open?: string;
   maxwidth?: string;
-  closable?: boolean;
-  transition?: GoAModalTransition;
-  calloutvariant?: GoAModalCalloutVariant;
+  closable: string;
+  /**
+   * @deprecated The role property is deprecated and will be removed in a future version.
+   * The modal will always use role="dialog".
+   */
+  role?: GoabModalRole;
+  transition?: GoabModalTransition;
+  calloutvariant?: GoabModalCalloutVariant;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -31,51 +30,35 @@ declare global {
   }
 }
 
-export interface GoAModalProps {
+export interface GoabModalProps {
   heading?: ReactNode;
   maxWidth?: string;
-  actions?: ReactElement;
+  actions?: ReactElement<any>;
   onClose?: () => void;
-  transition?: GoAModalTransition;
+  transition?: GoabModalTransition;
   children?: ReactNode;
   open?: boolean;
-  calloutVariant?: GoAModalCalloutVariant;
+  calloutVariant?: GoabModalCalloutVariant;
   testId?: string;
-
-  // @deprecated: use maxWidth
-  width?: string;
-  // @deprecated: use variant
-  type?: string;
+  /**
+   * @deprecated The role property is deprecated and will be removed in a future version.
+   * The modal will always use role="dialog".
+   */
+  role?: GoabModalRole;
 }
 
-export function GoAModal({
+export function GoabModal({
   heading,
   children,
   maxWidth,
   open,
   actions,
   transition,
-  type,
   calloutVariant,
   onClose,
   testId,
-
-  width,
-}: GoAModalProps): JSX.Element {
+}: GoabModalProps): JSX.Element {
   const el = useRef<HTMLElement>(null);
-
-  // @deprecated
-  useEffect(() => {
-    if (type) {
-      console.warn("GoAModal [type] is deprecated.");
-    }
-  }, [type]);
-
-  // @deprecated
-  useEffect(() => {
-    // @ts-expected-error: deprecated
-    maxWidth = width;
-  }, [width]);
 
   useEffect(() => {
     if (!el.current) {
@@ -95,12 +78,12 @@ export function GoAModal({
   return (
     <goa-modal
       ref={el}
-      open={open}
-      closable={!!onClose}
+      open={open ? "true" : undefined}
+      closable={onClose ? "true" : "false"}
       maxwidth={maxWidth}
       transition={transition}
       calloutvariant={calloutVariant}
-      data-testid={testId}
+      testid={testId}
     >
       {heading && <div slot="heading">{heading}</div>}
       {actions && <div slot="actions">{actions}</div>}
@@ -109,4 +92,4 @@ export function GoAModal({
   );
 }
 
-export default GoAModal;
+export default GoabModal;

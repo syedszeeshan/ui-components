@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
+import { GoabCheckboxOnChangeDetail, Margins } from "@abgov/ui-components-common";
+import { useEffect, useRef, type JSX } from "react";
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -11,23 +11,27 @@ declare global {
 }
 
 interface WCProps extends Margins {
-  ref: React.RefObject<HTMLElement>;
+  ref: React.RefObject<HTMLElement | null>;
   id?: string;
   name: string;
-  checked: boolean;
-  disabled?: boolean;
-  error?: boolean;
+  checked?: string;
+  disabled?: string;
+  error?: string;
   text?: string;
-  value?: string | number | boolean;
+  value?: string | number;
   arialabel?: string;
   description?: string | React.ReactNode;
+  reveal?: React.ReactNode;
+  revealarialabel?: string;
+  maxwidth?: string;
+  testid?: string;
 }
 
 /* eslint-disable-next-line */
-export interface GoACheckboxProps extends Margins {
+export interface GoabCheckboxProps extends Margins {
   id?: string;
   name: string;
-  checked: boolean;
+  checked?: boolean;
   disabled?: boolean;
   error?: boolean;
   text?: string;
@@ -36,13 +40,16 @@ export interface GoACheckboxProps extends Margins {
   testId?: string;
   ariaLabel?: string;
   description?: string | React.ReactNode;
-  onChange?: (name: string, checked: boolean, value: string) => void;
+  reveal?: React.ReactNode;
+  revealAriaLabel?: string;
+  maxWidth?: string;
+  onChange?: (detail: GoabCheckboxOnChangeDetail) => void;
 }
 
 // legacy
-export type Props = GoACheckboxProps;
+export type Props = GoabCheckboxProps;
 
-export function GoACheckbox({
+export function GoabCheckbox({
   id,
   name,
   testId,
@@ -52,6 +59,9 @@ export function GoACheckbox({
   value,
   text,
   description,
+  reveal,
+  revealAriaLabel,
+  maxWidth,
   children,
   onChange,
   ariaLabel,
@@ -59,16 +69,16 @@ export function GoACheckbox({
   mr,
   mb,
   ml,
-}: GoACheckboxProps): JSX.Element {
+}: GoabCheckboxProps): JSX.Element {
   const el = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!el.current) {
       return;
     }
     const current = el.current;
-    const listener = (e: unknown) => {
-      const ce = e as CustomEvent;
-      onChange?.(name, ce.detail.checked, ce.detail.value);
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabCheckboxOnChangeDetail>).detail;
+      onChange?.(detail);
     };
 
     current.addEventListener("_change", listener);
@@ -80,26 +90,31 @@ export function GoACheckbox({
 
   return (
     <goa-checkbox
-      data-testid={testId}
+      testid={testId}
       ref={el}
       id={id}
       name={name}
-      error={error}
-      checked={checked}
-      disabled={disabled}
+      error={error ? "true" : undefined}
+      checked={checked ? "true" : undefined}
+      disabled={disabled ? "true" : undefined}
       text={text}
-      value={value}
+      value={typeof value === "boolean" ? (value ? "true" : undefined) : value}
       arialabel={ariaLabel}
+      revealarialabel={revealAriaLabel}
       description={typeof description === "string" ? description : undefined}
+      maxwidth={maxWidth}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
     >
-      {description && typeof description !== "string" && <div slot="description">{description}</div>}
       {children}
+      {typeof description !== "string" && description && (
+        <div slot="description">{description}</div>
+      )}
+      {reveal && <div slot="reveal">{reveal}</div>}
     </goa-checkbox>
   );
 }
 
-export default GoACheckbox;
+export default GoabCheckbox;

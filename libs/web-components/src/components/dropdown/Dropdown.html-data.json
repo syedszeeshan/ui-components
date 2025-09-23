@@ -69,12 +69,6 @@
       "default": "false"
     },
     {
-      "name": "relative",
-      "description": "Set to true if a parent element has a css position of `relative`",
-      "type": "boolean",
-      "default": "false"
-    },
-    {
       "name": "mt",
       "description": "Top margin",
       "valueSet": "spacing"
@@ -99,6 +93,11 @@
       "description": "When true, the dropdown will be filterable. Non-native only",
       "valueSet": "boolean",
       "default": "false"
+    },
+    {
+      "name": "autoComplete",
+      "description": "Controls whether input field should have autofill enabled and what type of information it expects.",
+      "type": "string"
     }
   ],
   "references": [

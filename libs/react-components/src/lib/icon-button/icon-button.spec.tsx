@@ -1,10 +1,27 @@
 import { render } from "@testing-library/react";
-import { GoAIconButton, IconButtonVariant } from "./icon-button";
+import { GoabIconButton } from "./icon-button";
+import { GoabIconButtonVariant } from "@abgov/ui-components-common";
 
-describe("GoA IconButton", () => {
+describe("GoabIconButton", () => {
+  it("should render", () => {
+    const { container } = render(<GoabIconButton icon="information" />);
+    const el = container.querySelector("goa-icon-button");
+
+    expect(el?.getAttribute("icon")).toBe("information");
+    expect(el?.getAttribute("disabled")).toBeNull();
+  });
+
   it("should render the properties", () => {
     const { container } = render(
-      <GoAIconButton icon="information" mt="s" mr="m" mb="l" ml="xl" />
+      <GoabIconButton
+        icon="information"
+        mt="s"
+        mr="m"
+        mb="l"
+        ml="xl"
+        ariaLabel="information button"
+        disabled
+      />,
     );
     const el = container.querySelector("goa-icon-button");
 
@@ -13,21 +30,23 @@ describe("GoA IconButton", () => {
     expect(el?.getAttribute("mr")).toBe("m");
     expect(el?.getAttribute("mb")).toBe("l");
     expect(el?.getAttribute("ml")).toBe("xl");
+    expect(el?.getAttribute("arialabel")).toBe("information button");
+    expect(el?.getAttribute("disabled")).toBe("true");
   });
 
   describe("Variants", () => {
     (["color", "nocolor", "dark", "destructive"] as const).forEach(
-      (variant: IconButtonVariant) => {
+      (variant: GoabIconButtonVariant) => {
         it(`should render ${variant} variant`, async () => {
           const { container } = render(
-            <GoAIconButton variant={variant} icon="information" />
+            <GoabIconButton variant={variant} icon="information" />,
           );
 
           const el = container.querySelector("goa-icon-button");
           expect(el).toBeTruthy();
           expect(el?.getAttribute("variant")).toEqual(variant);
         });
-      }
+      },
     );
   });
 });

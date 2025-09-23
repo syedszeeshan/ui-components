@@ -1,18 +1,25 @@
-import { Margins } from "../../common/styling";
+import {
+  GoabFormItemLabelSize,
+  GoabFormItemRequirement,
+  Margins,
+} from "@abgov/ui-components-common";
 
-export type GoAFormItemRequirement = "optional" | "required";
-export type GoAFormItemLabelSize = "regular" | "large";
+import type { JSX } from "react";
 
 interface WCProps extends Margins {
   label?: string;
-  labelsize?: GoAFormItemLabelSize;
-  requirement?: GoAFormItemRequirement;
+  labelsize?: GoabFormItemLabelSize;
+  requirement?: GoabFormItemRequirement;
   error?: string;
   helptext?: string;
+  maxwidth?: string;
+  "public-form-summary-order"?: number;
+  name?: string;
   id?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -21,48 +28,65 @@ declare global {
   }
 }
 
-export interface GoAFormItemProps extends Margins {
+export interface GoabFormItemProps extends Margins {
   label?: string;
-  labelSize?: GoAFormItemLabelSize;
-  requirement?: GoAFormItemRequirement;
-  error?: string;
-  helpText?: string;
+  labelSize?: GoabFormItemLabelSize;
+  requirement?: GoabFormItemRequirement;
+  error?: string | React.ReactNode;
+  helpText?: string | React.ReactNode;
+  maxWidth?: string;
+  /**
+   * Public form: to arrange fields in the summary
+   */
+  publicFormSummaryOrder?: number;
+  /**
+   * Public form: allow to override the label value within the form-summary to provide a shorter description of the value
+   */
+  name?: string;
   children?: React.ReactNode;
   testId?: string;
   id?: string;
 }
 
-export function GoAFormItem({
+export function GoabFormItem({
   children,
   helpText,
   error,
   requirement,
   label,
   labelSize,
+  maxWidth,
+  publicFormSummaryOrder,
+  name,
   mt,
   mr,
   mb,
   ml,
   testId,
   id,
-}: GoAFormItemProps): JSX.Element {
+}: GoabFormItemProps): JSX.Element {
   return (
     <goa-form-item
       label={label}
       labelsize={labelSize}
-      error={error}
+      error={typeof error === "string" ? error : undefined}
       requirement={requirement}
-      helptext={helpText}
+      helptext={typeof helpText === "string" ? helpText : undefined}
+      maxwidth={maxWidth}
+      public-form-summary-order={publicFormSummaryOrder}
+      name={name}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
       id={id}
     >
+      {error && typeof error !== "string" && <div slot="error">{error}</div>}
+      {helpText && typeof helpText !== "string" && <div slot="helptext">{helpText}</div>}
       {children}
     </goa-form-item>
   );
 }
 
-export default GoAFormItem;
+export default GoabFormItem;

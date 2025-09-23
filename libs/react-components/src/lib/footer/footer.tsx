@@ -1,10 +1,12 @@
-import { ReactNode } from "react";
+import { ReactNode, type JSX } from "react";
 
 interface WCProps {
   maxcontentwidth?: string;
+  testid?: string;
+  url?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -14,25 +16,27 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAAppFooterProps {
+export interface GoabAppFooterProps {
   maxContentWidth?: string;
   children?: ReactNode;
   testId?: string;
+  url?: string;
 }
 
 // legacy name
-export type FooterProps = GoAAppFooterProps;
+export type FooterProps = GoabAppFooterProps;
 
-export function GoAAppFooter({
+export function GoabAppFooter({
   maxContentWidth,
   children,
   testId,
-}: GoAAppFooterProps): JSX.Element {
+  url,
+}: GoabAppFooterProps): JSX.Element {
   return (
-    <goa-app-footer maxcontentwidth={maxContentWidth} data-testid={testId}>
+    <goa-app-footer maxcontentwidth={maxContentWidth} testid={testId} url={url}>
       {children}
     </goa-app-footer>
   );
 }
 
-export default GoAAppFooter;
+export default GoabAppFooter;

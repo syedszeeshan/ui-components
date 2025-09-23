@@ -3,7 +3,11 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
   import noscroll from "../../common/no-scroll";
-  import { toBoolean, typeValidator } from "../../common/utils";
+  import {
+    getSlottedChildren,
+    typeValidator,
+    toBoolean,
+  } from "../../common/utils";
   import { onDestroy, onMount, tick } from "svelte";
 
   type CalloutVariant = (typeof CALLOUT_VARIANT)[number];
@@ -19,6 +23,7 @@
   export let transition: Transition = "none";
   export let calloutvariant: CalloutVariant | null = null;
   export let maxwidth: string = "60ch";
+  export let testid: string = "modal";
 
   // @deprecated: use maxwidth
   export let width: string = "";
@@ -28,11 +33,15 @@
   // *******
 
   let _rootEl: HTMLElement | null = null;
-  let _scrollPos: "top" | "middle" | "bottom" = "top";
-  let _scrollEl: HTMLElement | null = null;
-  let _headerEl: HTMLElement | null = null;
+  let _scrollPos: "top" | "middle" | "bottom" | null = "top";
+  let _scrollEl: HTMLElement | undefined;
+  let _headerEl: HTMLElement | undefined;
   let _isOpen: boolean = false;
-  let _requiresTopPadding: boolean;
+  let _actionsHeight: number;
+  let _headingSlotHasContent = false;
+  let _actionsSlotHasContent = false;
+  let _headerHeight: number;
+  let _edgeMargin: number = 128; //64px top edge + 64px bottom edge
 
   // Type verification
   const [CALLOUT_VARIANT, validateCalloutVariant] = typeValidator(
@@ -51,6 +60,8 @@
   // ********
 
   $: _isClosable = toBoolean(closable);
+  $: _headingExists = heading !== "" || ($$slots.heading && _headingSlotHasContent);
+  $: _headerHasContent = _headingExists || _isClosable;
 
   // Moving the reactive var into a timeout prevents accessing null stylesheet
   // reference to allow for creation of the @keyframes for the in:fade and out:fade transitions.
@@ -60,20 +71,15 @@
   // Show the shadow at the top of the content after scrolling down
   $: if (_isOpen && _scrollEl) {
     const hasScroll = _scrollEl.scrollHeight > _scrollEl.offsetHeight;
-    if (hasScroll) {
-      _scrollPos = "top";
-    }
-  }
-
-  $: if (_isOpen && _rootEl) {
-    _requiresTopPadding =
-      !!_headerEl?.querySelector("div.modal-title")?.textContent ||
-      !!_headerEl?.querySelector("div.modal-close") ||
-      getChildren().length > 0;
+    _scrollPos = hasScroll ? "top" : null;
   }
 
   $: _transitionTime =
     transition === "none" ? 0 : transition === "slow" ? 400 : 200;
+
+  $: if (_isOpen) {
+    checkSlotsContent();
+  }
 
   $: _iconType =
     calloutvariant === "emergency"
@@ -97,7 +103,7 @@
     validateCalloutVariant(calloutvariant);
     validateTransition(transition);
 
-    // event listenerts
+    // event listeners
     window.addEventListener("keydown", onInputKeyDown);
 
     if (width) {
@@ -113,6 +119,29 @@
   // *********
   // Functions
   // *********
+
+  async function checkSlotsContent() {
+    await tick();
+
+    _headingSlotHasContent = !isEmptySlot(".modal-title", "heading");
+    _actionsSlotHasContent = !isEmptySlot(".modal-actions", "actions");
+  }
+
+  /**
+   * This check is currently Angular specific, to check that the specified slot contains
+   * more than an emtpy <div> element, as that is what Angular is currently injecting
+   * when the ng-template is not defined.
+   * @param selector
+   * @param slotName
+   */
+  function isEmptySlot(selector: string, slotName: string): boolean {
+    const el = _rootEl?.querySelector(selector);
+    const children = el && getSlottedChildren(el);
+
+    return children?.length === 1 // there should only be one child element
+      && children[0].tagName === "DIV" // angular renders a <div>
+      && children[0].getAttribute("slot") === slotName // the div is a slot
+  }
 
   function close(e: Event) {
     if (!_isClosable) {
@@ -141,29 +170,15 @@
     // top
     if (e.detail.scrollTop == 0) {
       _scrollPos = "top";
-      return;
-    }
-
-    // bottom
-    if (
+    } else if (
+      // bottom
       Math.abs(
         e.detail.scrollHeight - e.detail.scrollTop - e.detail.offsetHeight,
       ) < 1
     ) {
       _scrollPos = "bottom";
-      return;
-    }
-
-    _scrollPos = "middle";
-  }
-
-  function getChildren(): Element[] {
-    const slot = _headerEl?.querySelector("slot") as HTMLSlotElement;
-    if (slot) {
-      return [...slot.assignedElements()];
     } else {
-      // @ts-expect-error
-      return [..._headerEl.children] as Element[]; // unit tests
+      _scrollPos = "middle";
     }
   }
 </script>
@@ -174,9 +189,10 @@
       use:noscroll={{ enable: _isOpen }}
       in:fade={{ duration: _transitionTime }}
       out:fade={{ delay: _transitionTime, duration: _transitionTime }}
-      data-testid="modal"
-      class={`modal ${_scrollPos}`}
-      style={`--maxwidth: ${maxwidth};`}
+      data-testid={testid}
+      class={`modal ${_scrollPos ?? ""}`}
+      style={`--maxwidth: ${maxwidth}; --actions-height: ${_actionsHeight}px; --header-height: ${_headerHeight}`}
+      role="presentation"
       bind:this={_rootEl}
     >
       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -186,6 +202,11 @@
         in:fly={{ duration: _transitionTime, y: 200 }}
         out:fly={{ delay: _transitionTime, duration: _transitionTime, y: -100 }}
         class="modal-pane"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="goa-modal-heading"
+        data-first-focus="true"
       >
         {#if calloutvariant !== null}
           <div class="callout-bar {calloutvariant}">
@@ -196,11 +217,20 @@
           </div>
         {/if}
         <div class="content">
-          <header bind:this={_headerEl} class:has-content={_requiresTopPadding}>
-            <div data-testid="modal-title" class="modal-title">
+          <header
+            bind:this={_headerEl}
+            class:has-content={_headerHasContent}
+            bind:clientHeight={_headerHeight}
+          >
+            <div
+              data-testid="modal-title"
+              class="modal-title"
+              id="goa-modal-heading"
+              aria-label={_headingExists ? undefined : "Modal"}
+            >
               {#if heading}
                 {heading}
-              {:else}
+              {:else if $$slots.heading}
                 <slot name="heading" />
               {/if}
             </div>
@@ -209,10 +239,14 @@
                 <!-- svelte-ignore a11y-click-events-have-key-events -->
                 <!-- svelte-ignore a11y-no-static-element-interactions -->
                 <goa-icon-button
+                  size="medium"
+                  data-ignore-focus="true"
                   data-testid="modal-close-button"
+                  arialabel="Close the modal"
                   icon="close"
+                  theme="filled"
                   on:click={close}
-                  variant="nocolor"
+                  variant="dark"
                 />
               </div>
             {/if}
@@ -220,16 +254,25 @@
           <div data-testid="modal-content" class="modal-content">
             <goa-scrollable
               direction="vertical"
-              hpadding="1.9rem"
-              maxheight="70vh"
+              hpadding="var(--scrollable-padding)"
+              maxheight="calc(100vh - {_headerHeight}px - var(--goa-space-xl) - {_actionsHeight}px - {_edgeMargin}px)"
               bind:this={_scrollEl}
               on:_scroll={handleScroll}
             >
-              <slot />
+              <slot name="content">
+                <slot />
+              </slot>
             </goa-scrollable>
           </div>
-          <div class="modal-actions" data-testid="modal-actions">
-            <slot name="actions" />
+          <div
+            bind:clientHeight={_actionsHeight}
+            class="modal-actions"
+            class:empty-actions={!_actionsSlotHasContent}
+            data-testid="modal-actions"
+          >
+            {#if $$slots.actions}
+              <slot name="actions" />
+            {/if}
           </div>
         </div>
       </div>
@@ -270,22 +313,28 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: var(--goa-modal-overlay-color);
     z-index: 1;
+    opacity: var(--goa-modal-overlay-opacity);
   }
 
+  /* Callout types */
   .emergency {
     background-color: var(--goa-color-emergency-default);
   }
+
   .important {
     background-color: var(--goa-color-warning-default);
   }
+
   .information {
     background-color: var(--goa-color-info-default);
   }
+
   .event {
     background-color: var(--goa-color-info-default);
   }
+
   .success {
     background-color: var(--goa-color-success-default);
   }
@@ -293,13 +342,14 @@
   .callout-bar {
     flex: 0 0 3rem;
     text-align: center;
-    padding-top: 2rem;
-    border-radius: 4px 0px 0px 4px;
+    padding: var(--goa-modal-callout-bar-padding) 0 0 0;
+    border-radius: var(--goa-modal-border-radius) 0px 0px var(--goa-modal-border-radius);
   }
+
   .content {
     flex: 1 1 auto;
     width: 100%;
-    margin: var(--goa-space-xl);
+    padding: var(--goa-modal-padding) var(--goa-modal-padding) 0 var(--goa-modal-padding);
   }
 
   .content header {
@@ -307,27 +357,63 @@
     justify-content: space-between;
   }
 
-  header.has-content {
-    margin-bottom: var(--goa-space-l);
+  .content header.has-content {
+    margin-bottom: var(--goa-modal-content-gap); /* space under heading */
   }
 
   @media (--mobile) {
     .content {
-      margin: var(--goa-space-l);
+      padding: var(--goa-modal-padding-small-screen) var(--goa-modal-padding-small-screen) 0 var(--goa-modal-padding-small-screen);
     }
-    header.has-content {
-      margin-bottom: var(--goa-space-m);
+
+    .content header.has-content {
+      margin-bottom: var(--goa-modal-content-gap-small-screen); /* space under heading */
     }
 
     .modal-actions :global(::slotted(*)) {
-      padding: var(--goa-space-l) 0 0;
+      padding: 0;
     }
+
+    .modal-content :global(::slotted(:last-child)) {
+      margin-bottom: var(--goa-space-xs) !important;
+    }
+
+    .modal-pane {
+      flex-direction: column;
+    }
+
+    .callout-bar {
+      text-align: left;
+      padding: var(--goa-modal-callout-bar-padding-small-screen);
+      border-radius: var(--goa-modal-border-radius) var(--goa-modal-border-radius) 0px 0px;
+      height: var(--goa-space-2xl);
+    }
+
+    .modal-content {
+      margin: 0 -1.5rem;
+      box-shadow: none;
+    }
+
+    :host {
+      --scrollable-padding: var(--goa-scrollable-padding-mobile);
+    }
+
   }
 
-  @media (--desktop) {
+  @media (--not-mobile) {
     .modal-pane {
       max-width: var(--maxwidth);
     }
+
+    .modal-content {
+      margin: 0 -2rem;
+      box-shadow: none;
+    }
+
+    :host {
+      --scrollable-padding: var(--goa-scrollable-padding-desktop);
+    }
+
   }
 
   .modal-pane {
@@ -336,43 +422,42 @@
     width: 90%;
     display: flex;
     box-shadow: var(--goa-shadow-modal);
-    border-radius: 4px;
-    border: 1px solid var(--goa-color-greyscale-700);
-  }
-
-  .modal-actions :global(::slotted(*)) {
-    padding: var(--goa-space-xl) 0 0;
-  }
-
-  .modal-content {
-    margin: 0 -2rem;
-    line-height: 1.75rem;
+    border-radius: var(--goa-modal-border-radius);
   }
 
   .modal-content :global(::slotted(:last-child)) {
-    margin-bottom: 0 !important;
+    margin-bottom: var(--goa-space-m) !important;
   }
 
   .modal-title {
-    font: var(--goa-typography-heading-m);
+    font: var(--goa-modal-header-typography);
   }
 
   .modal-close {
     padding-left: var(--goa-space-m);
-    margin-top: var(--goa-space-2xs);
   }
 
-  .scroll-top {
-    box-shadow: inset 0px -8px 6px -6px rgba(0, 0, 0, 0.1);
+  .modal-actions {
+    width: 100%;
+    padding: var(--goa-space-m) 0 var(--goa-modal-padding) 0;
+    margin: auto 0 0 0;
+    text-align: right;
   }
 
-  .scroll-middle {
-    box-shadow:
-      inset 0px -8px 6px -6px rgba(0, 0, 0, 0.1),
-      inset 0px 8px 6px -6px rgba(0, 0, 0, 0.1);
+  .modal-actions.empty-actions {
+    padding: 0 0 var(--goa-modal-padding) 0;
   }
 
-  .scroll-bottom {
-    box-shadow: inset 0px 8px 6px -6px rgba(0, 0, 0, 0.1);
+  .modal.top .modal-content {
+    box-shadow: inset 0 -8px 8px -8px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal.bottom .modal-content {
+    box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal.middle .modal-content {
+    box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.2),
+    inset 0 -8px 8px -8px rgba(0, 0, 0, 0.2);
   }
 </style>

@@ -1,8 +1,10 @@
-import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
-
-
-type CountBy = "character" | "word";
+import {
+  GoabTextAreaCountBy,
+  GoabTextAreaOnChangeDetail,
+  GoabTextAreaOnKeyPressDetail,
+  Margins,
+} from "@abgov/ui-components-common";
+import { useEffect, useRef, type JSX } from "react";
 
 interface WCProps extends Margins {
   ref: React.Ref<HTMLTextAreaElement>;
@@ -10,15 +12,19 @@ interface WCProps extends Margins {
   value?: string;
   placeholder?: string;
   rows?: number;
-  error?: boolean;
-  disabled?: boolean;
+  error?: string;
+  readOnly?: string;
+  disabled?: string;
   width?: string;
+  maxwidth?: string;
   arialabel?: string;
-  countby?: CountBy;
+  countby?: GoabTextAreaCountBy;
   maxcount?: number;
+  autocomplete?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -27,33 +33,38 @@ declare global {
   }
 }
 
-export interface GoATextAreaProps extends Margins {
+export interface GoabTextAreaProps extends Margins {
   name: string;
   value?: string;
   id?: string;
   placeholder?: string;
   rows?: number;
   error?: boolean;
+  readOnly?: boolean;
   disabled?: boolean;
   width?: string;
+  maxWidth?: string;
   testId?: string;
   ariaLabel?: string;
-  countBy?: CountBy;
+  countBy?: GoabTextAreaCountBy;
   maxCount?: number;
+  autoComplete?: string;
 
-  onChange: (name: string, value: string) => void;
-  onKeyPress?: (name: string, value: string, key: string) => void;
+  onChange?: (event: GoabTextAreaOnChangeDetail) => void;
+  onKeyPress?: (event: GoabTextAreaOnKeyPressDetail) => void;
 }
 
-export function GoATextarea({
+export function GoabTextArea({
   name,
   value,
   placeholder,
   rows,
+  readOnly,
   disabled,
   countBy,
   maxCount,
   width,
+  maxWidth,
   testId,
   error,
   ariaLabel,
@@ -61,9 +72,10 @@ export function GoATextarea({
   mr,
   mb,
   ml,
+  autoComplete,
   onChange,
   onKeyPress,
-}: GoATextAreaProps): JSX.Element {
+}: GoabTextAreaProps): JSX.Element {
   const el = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -71,17 +83,20 @@ export function GoATextarea({
       return;
     }
     const current = el.current;
-    const listener: EventListener = (e: unknown) => {
-      const { name, value } = (e as CustomEvent).detail;
-      onChange(name, value);
-    };
+    const listener: EventListener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabTextAreaOnChangeDetail>).detail;
 
-    current.addEventListener("_change", listener);
+      onChange?.(detail);
+    };
+    if (onChange) {
+      current.addEventListener("_change", listener);
+    }
     return () => {
-      current.removeEventListener("_change", listener);
+      if (onChange) {
+        current.removeEventListener("_change", listener);
+      }
     };
   }, [el, onChange]);
-
 
   useEffect(() => {
     if (!el.current) {
@@ -89,9 +104,9 @@ export function GoATextarea({
     }
     const current = el.current;
     const keypressListener = (e: unknown) => {
-      const { name, value, key } = (e as CustomEvent).detail;
-      onKeyPress?.(name, value, key);
-    }
+      const detail = (e as CustomEvent<GoabTextAreaOnKeyPressDetail>).detail;
+      onKeyPress?.(detail);
+    };
 
     current.addEventListener("_keyPress", keypressListener);
     return () => {
@@ -106,21 +121,22 @@ export function GoATextarea({
       placeholder={placeholder}
       value={value}
       rows={rows}
-      disabled={disabled}
+      readOnly={readOnly ? "true" : undefined}
+      disabled={disabled ? "true" : undefined}
       countby={countBy}
       maxcount={maxCount}
       width={width}
-      error={error}
-      data-testid={testId}
+      maxwidth={maxWidth}
+      error={error ? "true" : undefined}
+      testid={testId}
       arialabel={ariaLabel}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
+      autocomplete={autoComplete}
     ></goa-textarea>
   );
 }
 
-export {GoATextarea as GoATextArea}
-export default GoATextarea;
-
+export default GoabTextArea;

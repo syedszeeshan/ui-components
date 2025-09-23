@@ -37,6 +37,67 @@ describe("Modal Component", () => {
     });
   });
 
+  it("should show heading and have accessibility attributes", async() => {
+    const el = render(GoAModal, { open: "true", heading: "Test Modal" });
+
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("tabindex")).toBe("-1");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("aria-labelledby")).toBe("goa-modal-heading");
+      expect(modal?.querySelector(".has-content")).toBeTruthy();
+      const modalHeading = el.queryByTestId("modal-title");
+      expect(modalHeading?.getAttribute("aria-label")).toBeNull();
+    });
+  });
+
+  it("should show slotted heading content and have accessibility attributes", async () => {
+    const heading = "Test heading";
+    const el =  render(GoAModal, { open: "true", heading });
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("tabindex")).toBe("-1");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("aria-labelledby")).toBe("goa-modal-heading");
+      expect(modal?.querySelector(".has-content")).not.toBeNull(); // make sure the slot is rendered
+      const modalHeading = el.queryByTestId("modal-title");
+      expect(modalHeading?.textContent).toContain(heading);
+      expect(modalHeading?.getAttribute("aria-label")).toBeNull();
+    });
+  });
+
+  it("should show close icon and have accessibility attributes attributes", async() => {
+    const el = render(GoAModal, { open: "true", closable: "true" });
+
+    await waitFor(() => {
+      const closeIcon = el.queryByTestId("modal-close-button");
+      expect(closeIcon?.getAttribute("arialabel")).toBe("Close the modal");
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("tabindex")).toBe("-1");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("aria-labelledby")).toBe("goa-modal-heading");
+      expect(modal?.querySelector(".has-content")).toBeTruthy();
+      const modalHeading = el.queryByTestId("modal-title");
+      const fallbackAriaLabelWhenNoHeading = "Modal"
+      expect(modalHeading?.getAttribute("aria-label")).toBe(fallbackAriaLabelWhenNoHeading);
+    });
+  });
+
+  it("should show accessibility attributes attributes", async() => {
+    const el = render(GoAModal, { open: "true" });
+
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("tabindex")).toBe("-1");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("aria-labelledby")).toBe("goa-modal-heading");
+      expect(modal?.querySelector(".has-content")).toBeFalsy();
+      const modalHeading = el.queryByTestId("modal-title");
+      const fallbackAriaLabelWhenNoHeading = "Modal"
+      expect(modalHeading?.getAttribute("aria-label")).toBe(fallbackAriaLabelWhenNoHeading);
+    });
+  });
+
   it("should open when the `open` attribute is set to true", async () => {
     const el = render(GoAModal, { open: "true" });
 
@@ -49,16 +110,6 @@ describe("Modal Component", () => {
     const el = render(GoAModal, { open: "false" });
     await waitFor(() => {
       expect(el.queryByTestId("modal")).toBeFalsy();
-    });
-  });
-
-  it("should show the heading", async () => {
-    const heading = "Test heading";
-    const el = render(GoAModalWrapper, { heading });
-    await waitFor(() => {
-      expect(el.container.querySelector("[slot=heading]")?.innerHTML).toContain(
-        heading,
-      );
     });
   });
 
@@ -102,9 +153,9 @@ describe("Modal Component", () => {
     const actionContent = "This is the actionContent";
     const el = render(GoAModalWrapper, { actionContent });
 
-    expect(el.container.querySelector("[slot=actions]")?.innerHTML).toContain(
-      actionContent,
-    );
+    await waitFor(() => {
+      expect(el.container.querySelector("[slot=actions]")?.innerHTML).toContain(actionContent);
+    });
   });
 
   ["emergency", "important", "information", "success", "event"].forEach(
@@ -140,6 +191,46 @@ describe("Modal Component", () => {
       rootEl?.addEventListener("_close", handleClose);
       await fireEvent.keyDown(window, { key: "Escape", keyCode: 27 });
       expect(handleClose).toBeCalled();
+    });
+  });
+
+  it("should have accessibility attributes by default", async() => {
+    const el = render(GoAModal, { open: "true", heading: "Test Modal" });
+
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("aria-labelledby")).toBe("goa-modal-heading");
+      expect(modal?.getAttribute("tabindex")).toBe("-1");
+    });
+  });
+
+  it("should not focus on close button for accessibility", async () => {
+    const el = render(GoAModal, { open: "true", closable: "true" });
+    await waitFor(async () => {
+      const closeIcon = el.queryByTestId("modal-close-button");
+      await waitFor(() => {
+        closeIcon && expect(closeIcon).not.toHaveFocus();
+      });
+    });
+  });
+
+  it("should set role to dialog by default and set initial focus to it on open", async() => {
+    const el = render(GoAModal, { open: "true" });
+
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("data-first-focus")).toBe("true");
+    });
+  });
+
+  it("should always set role to dialog regardless of prop value", async () => {
+    const el = render(GoAModal, { open: "true", role: "alertdialog"});
+
+    await waitFor(() => {
+      const modal = el.queryByRole("dialog");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.getAttribute("data-first-focus")).toBe("true");
     });
   });
 });

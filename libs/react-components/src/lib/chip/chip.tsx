@@ -1,18 +1,18 @@
+import { GoabChipTheme, GoabChipVariant, Margins } from "@abgov/ui-components-common";
 import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
-
-export type GoAChipVariant = "filter";
 
 interface WCProps extends Margins {
-  ref: React.RefObject<HTMLElement>;
-  leadingicon: string;
-  error: boolean;
-  deletable: boolean;
+  ref: React.RefObject<HTMLElement | null>;
+  leadingicon?: string;
+  icontheme?: GoabChipTheme;
+  error?: string;
+  deletable?: string;
   content: string;
-  variant?: GoAChipVariant;
+  variant?: GoabChipVariant;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -21,20 +21,22 @@ declare global {
   }
 }
 
-export interface GoAChipProps extends Margins {
+export interface GoabChipProps extends Margins {
   onClick?: () => void;
   deletable?: boolean;
   leadingIcon?: string;
+  iconTheme?: GoabChipTheme;
   error?: boolean;
   content: string;
-  variant?: GoAChipVariant;
+  variant?: GoabChipVariant;
   testId?: string;
 }
 
-export const GoAChip = ({
-  leadingIcon = "",
-  deletable = false,
-  error = false,
+export const GoabChip = ({
+  leadingIcon,
+  iconTheme,
+  deletable,
+  error,
   variant,
   content,
   onClick,
@@ -43,7 +45,7 @@ export const GoAChip = ({
   mb,
   ml,
   testId,
-}: GoAChipProps) => {
+}: GoabChipProps) => {
   const el = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!el.current) return;
@@ -64,17 +66,18 @@ export const GoAChip = ({
     <goa-chip
       ref={el}
       leadingicon={leadingIcon}
-      error={error}
-      deletable={deletable}
+      icontheme={iconTheme}
+      error={error ? "true" : undefined}
+      deletable={deletable ? "true" : undefined}
       content={content}
       variant={variant}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     />
   );
-}
+};
 
-export default GoAChip;
+export default GoabChip;

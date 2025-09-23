@@ -1,37 +1,39 @@
 import { ReactNode } from "react";
-import { GoAIconType } from "../icon/icon";
+import { GoabIconType } from "@abgov/ui-components-common";
 
 interface WCProps {
   heading: string;
-  leadingicon?: GoAIconType;
+  leadingicon?: GoabIconType;
+  testid?: string;
 }
 
 /* eslint-disable-next-line */
-export interface GoAAppHeaderMenuProps {
+export interface GoabAppHeaderMenuProps {
   heading: string;
-  leadingIcon?: GoAIconType;
+  leadingIcon?: GoabIconType;
+  testId?: string;
   children?: ReactNode;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-app-header-menu": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
-export function GoAAppHeaderMenu(props: GoAAppHeaderMenuProps) {
+export function GoabAppHeaderMenu(props: GoabAppHeaderMenuProps) {
   return (
     <goa-app-header-menu
       heading={props.heading}
       leadingicon={props.leadingIcon}
+      testid={props.testId}
     >
       {props.children}
     </goa-app-header-menu>
   );
 }
 
-export default GoAAppHeaderMenu;
+export default GoabAppHeaderMenu;

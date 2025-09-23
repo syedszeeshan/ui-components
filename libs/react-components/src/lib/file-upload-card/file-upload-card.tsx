@@ -1,18 +1,22 @@
+import {
+  GoabFileUploadOnCancelDetail,
+  GoabFileUploadOnDeleteDetail,
+} from "@abgov/ui-components-common";
 import { useEffect, useRef } from "react";
 
 interface WCProps {
-  ref: React.MutableRefObject<HTMLElement | null>;
+  ref: React.RefObject<HTMLElement | null>;
   filename: string;
   size: number;
   type?: string;
   progress?: number;
   error?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-file-upload-card": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -20,33 +24,35 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoAFileUploadCardProps {
+export interface GoabFileUploadCardProps {
   filename: string;
   size: number;
   type?: string;
   progress?: number;
+  testId?: string;
   error?: string;
-  onDelete?: () => void;
-  onCancel?: () => void;
+  onDelete?: (detail: GoabFileUploadOnDeleteDetail) => void;
+  onCancel?: (detail: GoabFileUploadOnCancelDetail) => void;
 }
 
-export function GoAFileUploadCard({
+export function GoabFileUploadCard({
   filename,
   size,
   type,
   progress,
   error,
+  testId,
   onDelete,
   onCancel,
-}: GoAFileUploadCardProps) {
+}: GoabFileUploadCardProps) {
   const el = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!el.current) return;
 
     const current = el.current;
-    const deleteHandler = () => onDelete?.();
-    const cancelHandler = () => onCancel?.();
+    const deleteHandler = () => onDelete?.({ filename });
+    const cancelHandler = () => onCancel?.({ filename });
     current.addEventListener("_delete", deleteHandler);
     current.addEventListener("_cancel", cancelHandler);
     return () => {
@@ -63,8 +69,9 @@ export function GoAFileUploadCard({
       type={type}
       progress={progress}
       error={error}
+      testid={testId}
     />
   );
 }
 
-export default GoAFileUploadCard;
+export default GoabFileUploadCard;

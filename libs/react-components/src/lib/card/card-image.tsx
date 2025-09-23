@@ -1,9 +1,10 @@
+import type { JSX } from "react";
 interface WCProps {
   src: string;
   height: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -12,13 +13,13 @@ declare global {
   }
 }
 
-export interface GoACardImageProps {
+export interface GoabCardImageProps {
   src: string;
   height: string;
 }
 
-export function GoACardImage({ src, height }: GoACardImageProps): JSX.Element {
+export function GoabCardImage({ src, height }: GoabCardImageProps): JSX.Element {
   return <goa-card-image src={src} height={height} />;
 }
 
-export default GoACardImage;
+export default GoabCardImage;

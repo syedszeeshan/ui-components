@@ -1,4 +1,5 @@
-declare global {
+import type { JSX } from "react";
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -7,12 +8,12 @@ declare global {
   }
 }
 
-export interface GoACardContentProps {
+export interface GoabCardContentProps {
   children?: React.ReactNode;
 }
 
-export function GoACardContent({ children }: GoACardContentProps): JSX.Element {
+export function GoabCardContent({ children }: GoabCardContentProps): JSX.Element {
   return <goa-card-content>{children}</goa-card-content>;
 }
 
-export default GoACardContent;
+export default GoabCardContent;

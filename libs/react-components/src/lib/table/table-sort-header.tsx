@@ -1,14 +1,15 @@
-export type GoATableSortDirection = "asc" | "desc" | "none";
+import { GoabTableSortDirection } from "@abgov/ui-components-common";
+
+import type { JSX } from "react";
 
 interface WCProps {
   name?: string;
-  direction?: GoATableSortDirection;
+  direction?: GoabTableSortDirection;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-table-sort-header": WCProps & React.HTMLAttributes<HTMLElement>;
     }
@@ -16,17 +17,17 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoATableSortProps {
+export interface GoabTableSortProps {
   name?: string;
-  direction?: GoATableSortDirection;
+  direction?: GoabTableSortDirection;
   children?: React.ReactNode;
 }
 
-export function GoATableSortHeader({
+export function GoabTableSortHeader({
   name,
   direction = "none",
   children,
-}: GoATableSortProps): JSX.Element {
+}: GoabTableSortProps): JSX.Element {
   return (
     <goa-table-sort-header name={name} direction={direction}>
       {children}
@@ -34,4 +35,4 @@ export function GoATableSortHeader({
   );
 }
 
-export default GoATableSortHeader;
+export default GoabTableSortHeader;

@@ -1,7 +1,14 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+# Custom
 .nx
 playground
+NOTES.md
+/test-results
+__screenshots__
+
+# environment
+.env
 
 # compiled output
 dist
@@ -42,6 +49,7 @@ testem.log
 Thumbs.db
 
 .nx/cache
+.nx/workspace-data
 .angular
 
 # Devenv
@@ -54,3 +62,8 @@ devenv.local.nix
 # pre-commit
 .pre-commit-config.yaml
 
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md

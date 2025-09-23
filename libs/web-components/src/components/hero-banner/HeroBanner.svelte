@@ -8,6 +8,7 @@
   export let maxcontentwidth = "100%";
   export let backgroundcolor: string = "#f8f8f8";
   export let textcolor: string = "";
+  export let testid: string = "background";
 
   /* Set minheight to support old default value of 600px */
   $: if (!minheight && backgroundurl) minheight = "600px";
@@ -17,7 +18,7 @@
 <div
   class="goa-hero"
   class:with-image={backgroundurl}
-  data-testid="background"
+  data-testid={testid}
   style="
     min-height: {minheight};
     --hero-banner-background-color: {backgroundcolor};
@@ -51,16 +52,23 @@
     color: var(--hero-banner-text-color, var(--goa-color-text-default));
     background-position: center center;
     width: 100%;
-    padding: var(--goa-space-3xl) 0;
+    padding: var(--goa-hero-banner-padding);
+  }
+
+  @media (--mobile) {
+    .goa-hero {
+      padding: var(--goa-hero-banner-mobile-padding);
+    }
   }
 
   .goa-hero.with-image {
     border-bottom: 8px solid var(--goa-color-brand-default);
     justify-content: flex-end;
     background: unset;
-    background-image: linear-gradient(
+    background-image:
+      linear-gradient(
         rgba(0, 0, 0, 0) 0%,
-        rgba(0, 0, 0, 0.4) 40%,
+        rgba(0, 0, 0, 0.42) 42%,
         rgba(0, 0, 0, 0.6) 100%
       ),
       var(--hero-background-url);
@@ -71,16 +79,16 @@
   }
 
   h1 {
-    font: var(--goa-typography-heading-xl);
+    font: var(--goa-hero-banner-heading);
     margin: 0;
   }
 
   .goa-hero-banner-content {
-    font: var(--goa-typography-body-l);
-    margin: var(--goa-space-l) 0 0;
+    font: var(--goa-hero-banner-content);
+    margin: var(--goa-hero-banner-content-gap);
   }
 
   .goa-hero-banner-actions {
-    margin: var(--goa-space-l) 0 0;
+    margin: var(--goa-hero-banner-content-gap);
   }
 </style>

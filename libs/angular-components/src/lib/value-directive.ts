@@ -1,6 +1,7 @@
 import { forwardRef, Directive, ElementRef, HostListener } from "@angular/core";
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from "@angular/forms";
 
+// @deprecated: Use the new <goab-input .. /> component
 @Directive({
   selector: "[goaValue]", providers: [{
     provide: NG_VALUE_ACCESSOR,
@@ -10,10 +11,11 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from "@angular/forms";
 })
 export class ValueDirective implements ControlValueAccessor {
   private _value = "";
+  private _disabled = false;
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  onChange: any = () => { };
-  onTouched: any = () => { };
+  onChange: any = () => { /* default implementation */ };
+  onTouched: any = () => { /* default implementation */ };
 
   get value(): string {
     return this._value;
@@ -38,11 +40,20 @@ export class ValueDirective implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
+  setDisabledState(isDisabled: boolean): void {
+    this._disabled = isDisabled;
+    this.elementRef.nativeElement.disabled = isDisabled;
+  }
+
   constructor(protected elementRef: ElementRef) { }
 
   @HostListener("_change", ["$event.detail.value"])
   listenForValueChange(value: string) {
     this.value = value;
+  }
+  @HostListener("disabledChange", ["$event.detail.disabled"])
+  listenForDisabledChange(isDisabled: boolean) {
+    this.setDisabledState(isDisabled);
   }
 }
 

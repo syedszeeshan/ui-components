@@ -2,9 +2,29 @@
 
 <!-- Script -->
 <script lang="ts">
-  import { pluralize, toBoolean } from "../../common/utils";
-  import type { Spacing } from "../../common/styling";
-  import { calculateMargin } from "../../common/styling";
+  import {
+    dispatch,
+    pluralize,
+    receive,
+    relay,
+    toBoolean,
+  } from "../../common/utils";
+  import {
+    calculateMargin,
+    injectCss,
+    type Spacing,
+  } from "../../common/styling";
+  import { onMount, tick } from "svelte";
+  import {
+    FieldsetErrorRelayDetail,
+    FieldsetResetErrorsMsg,
+    FieldsetSetErrorMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+    FieldsetSetValueMsg,
+    FieldsetSetValueRelayDetail,
+    FieldsetResetFieldsMsg,
+  } from "../../types/relay-types";
 
   export let name: string;
   export let value: string = "";
@@ -18,6 +38,7 @@
   export let arialabel: string = "";
   export let countby: "character" | "word" | "" = "";
   export let maxcount: number = -1;
+  export let autocomplete: string = "";
 
   // margin
   export let mt: Spacing = null;
@@ -25,40 +46,98 @@
   export let mb: Spacing = null;
   export let ml: Spacing = null;
 
+  let _error = false;
+  let _prevError = false;
+
   // reactive
 
-  $: isError = toBoolean(error);
+  $: {
+    _error = toBoolean(error);
+    if (_error !== _prevError) {
+      dispatch(
+        _rootEl,
+        "error::change",
+        { isError: _error },
+        { bubbles: true },
+      );
+      _prevError = _error;
+    }
+  }
   $: isDisabled = toBoolean(disabled);
   $: isReadonly = toBoolean(readonly);
   $: count =
     countby === "character"
-      ? value.length
-      : value.split(" ").filter((word) => word.trim().length > 0).length;
+      ? value?.length
+      : value?.split(" ").filter((word) => word.trim().length > 0).length;
 
   // privates
 
   let _textareaEl: HTMLTextAreaElement;
+  let _rootEl: HTMLElement;
+
+  // Hooks
+
+  onMount(async () => {
+    await tick(); // for angular to register public form name
+    addRelayListener();
+    sendMountedMessage();
+    injectCss(_rootEl, ":host", {
+      width: width.includes("%") ? width : `min(${width}, 100%)`,
+    });
+  });
 
   // functions
+  function addRelayListener() {
+    receive(_textareaEl, (action, data) => {
+      switch (action) {
+        case FieldsetSetValueMsg:
+          onSetValue(data as FieldsetSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          setError(data as FieldsetErrorRelayDetail);
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+        case FieldsetResetFieldsMsg:
+          onSetValue({ name, value: "" });
+          break;
+      }
+    });
+  }
 
-  function onChange(e: KeyboardEvent) {
+  function setError(detail: FieldsetErrorRelayDetail) {
+    error = detail.error ? "true" : "false";
+  }
+
+  function onSetValue(detail: FieldsetSetValueRelayDetail) {
+    // @ts-expect-error
+    value = detail.value;
+    dispatchChange(value);
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _textareaEl,
+      FormFieldMountMsg,
+      { name, el: _textareaEl },
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
+  function onChange(e: Event) {
     if (isDisabled) return;
-    dispatchChange(e);
+    dispatchChange(_textareaEl.value);
   }
 
   function onKeyPress(e: KeyboardEvent) {
     if (isDisabled) return;
     dispatchKeyPress(e);
-    dispatchChange(e);
+    dispatchChange(_textareaEl.value);
   }
 
-  function dispatchChange(_: KeyboardEvent) {
-    _textareaEl.dispatchEvent(
-      new CustomEvent("_change", {
-        composed: true,
-        detail: { name, value: _textareaEl.value },
-      }),
-    );
+  function dispatchChange(value: string) {
+    dispatch(_textareaEl, "_change", { name, value }, { bubbles: true });
   }
 
   function dispatchKeyPress(e: KeyboardEvent) {
@@ -69,6 +148,10 @@
       }),
     );
   }
+
+  function onFocus(_e: Event) {
+    dispatch(_rootEl, "help-text::announce", undefined, { bubbles: true });
+  }
 </script>
 
 <!-- HTML -->
@@ -76,13 +159,14 @@
   <div
     data-testid="root"
     class="root"
-    class:error={isError || (maxcount > 0 && count > maxcount)}
+    class:error={_error || (maxcount > 0 && count > maxcount)}
     class:disabled={isDisabled}
     style={`
       ${calculateMargin(mt, mr, mb, ml)};
       --width: ${width};
       --char-count-padding: ${countby ? "2rem" : "0"};
     `}
+    bind:this={_rootEl}
   >
     <textarea
       bind:this={_textareaEl}
@@ -90,19 +174,22 @@
       {placeholder}
       {rows}
       aria-label={arialabel || name}
+      aria-invalid={_error ? "true" : "false"}
       disabled={isDisabled}
       readonly={isReadonly}
       data-testid={testid}
+      {autocomplete}
       bind:value
       on:keyup={onKeyPress}
       on:change={onChange}
+      on:focus={onFocus}
     />
 
     {#if maxcount > 0 && !isDisabled}
       <div class="counter" class:counter-error={count > maxcount}>
         {#if countby && count > maxcount}
           {count - maxcount} {pluralize(countby, count - maxcount)} too many
-        {:else if countby && count < maxcount}
+        {:else if countby && count <= maxcount}
           {maxcount - count} {pluralize(countby, maxcount - count)} remaining
         {/if}
       </div>
@@ -120,23 +207,62 @@
 <!-- Style -->
 <style>
   :host {
-    --textarea-padding-vertical: 0.625rem;
-    --textarea-padding-horizontal: var(--goa-space-s);
-
     box-sizing: border-box;
     font-family: var(--goa-font-family-sans);
+    display: inline-block;
   }
 
   #container {
     container: self / inline-size;
+    box-sizing: border-box;
   }
 
+  /* Default state */
   .root {
+    transition: box-shadow 0.05s ease-in;
     position: relative;
-    width: 100%;
-    padding-bottom: var(--char-count-padding);
-    border: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
-    border-radius: 3px;
+    max-width: var(--width, 100%);
+    padding-bottom: var(
+      --char-count-padding
+    ); /*if count by is true = 2rem, else 0*/
+    box-shadow: var(--goa-text-area-border);
+    border-radius: var(--goa-text-area-border-radius);
+    background: var(--goa-text-area-color-bg);
+  }
+  /* Hover state */
+  .root:hover {
+    box-shadow: var(--goa-text-area-border-hover);
+  }
+  /* Focus state */
+  .root:focus-within {
+    box-shadow: var(--goa-text-area-border), var(--goa-text-area-border-focus);
+  }
+  /* Error state */
+  .error,
+  .error:hover {
+    box-shadow: var(--goa-text-area-border-error);
+  }
+  .error:focus {
+    box-shadow: var(--goa-text-area-border), var(--goa-text-area-border-focus);
+  }
+  .error:focus-within:hover {
+    box-shadow: var(--goa-text-area-border), var(--goa-text-area-border-focus);
+  }
+  /* Disabled state */
+  .disabled,
+  .disabled:hover {
+    background-color: var(--goa-text-area-color-bg-disabled);
+    cursor: default;
+    box-shadow: var(--goa-text-area-border-disabled);
+    resize: none;
+  }
+  textarea:disabled {
+    resize: none;
+    color: var(--goa-text-area-color-text-disabled);
+  }
+
+  textarea[readonly] {
+    cursor: pointer;
   }
 
   textarea {
@@ -144,13 +270,52 @@
     box-sizing: border-box;
     outline: none;
     border: none;
-    border-radius: 3px;
-    color: var(--goa-color-greyscale-black, #ccc);
-    padding: var(--textarea-padding-vertical) var(--textarea-padding-horizontal);
-    font-size: var(--goa-font-size-4);
-    font-family: var(--goa-font-family-sans);
+    border-radius: var(--goa-text-area-border-radius);
+    color: var(--goa-text-area-color-text);
+    padding: var(--goa-text-area-padding);
+    font: var(--goa-text-area-typography);
     min-width: 100%;
-    resize: vertical;
+    max-width: 100%;
+    resize: none;
+    height: auto;
+    background: none;
+  }
+
+  /* Counter */
+  .counter {
+    position: absolute;
+    right: var(--goa-space-m);
+    bottom: var(--goa-space-s);
+    font: var(--goa-text-area-typography-counter);
+  }
+  .counter-error {
+    color: var(--goa-text-area-color-text-counter-error);
+  }
+
+  /* Scrollbar */
+  textarea {
+    resize: none;
+    scroll-behavior: smooth;
+    max-height: calc(100vh * var(--max-height, 100) / 100);
+    scrollbar-gutter: stable;
+  }
+  textarea::-webkit-scrollbar {
+    width: var(--goa-space-xs);
+  }
+  textarea::-webkit-scrollbar-track {
+    border-radius: var(--goa-border-radius-m);
+  }
+  textarea::-webkit-scrollbar-thumb {
+    background: var(--goa-color-greyscale-400);
+    border-radius: var(--goa-border-radius-m);
+  }
+  textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--goa-color-greyscale-600);
+  }
+
+  ::placeholder {
+    color: var(--goa-text-area-color-text-placeholder);
+    opacity: 1;
   }
 
   @container self (--mobile) {
@@ -161,73 +326,9 @@
   }
 
   @container self (--not-mobile) {
-    .root {
-      max-width: var(--width);
-    }
     textarea {
       min-width: 0;
-      width: var(--width);
+      width: 100%;
     }
-  }
-
-  textarea[readonly] {
-    cursor: pointer;
-  }
-
-  .root:hover {
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-hover);
-  }
-
-  .root:focus-within {
-    box-shadow: 0 0 0 var(--goa-border-width-l)
-      var(--goa-color-interactive-focus);
-  }
-
-  .counter-error {
-    color: var(--goa-color-interactive-error);
-  }
-
-  .counter {
-    position: absolute;
-    right: 0.75rem;
-    font-size: var(--goa-font-size-2);
-  }
-
-  textarea {
-    resize: none;
-    scroll-behavior: smooth;
-    max-height: calc(100vh * var(--max-height, 100) / 100);
-  }
-
-  textarea::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  textarea::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-
-  textarea::-webkit-scrollbar-thumb {
-    background: #888;
-  }
-
-  textarea::-webkit-scrollbar-thumb:hover {
-    background: #555;
-  }
-
-  .error {
-    border-color: var(--goa-color-interactive-error);
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-error);
-  }
-  .error:hover {
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-error);
-  }
-  .error:active,
-  .error:focus {
-    box-shadow: 0 0 0 var(--goa-border-width-l)
-      var(--goa-color-interactive-focus);
   }
 </style>

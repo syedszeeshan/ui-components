@@ -1,43 +1,44 @@
-import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
+import { useEffect, useRef, type JSX } from "react";
+import { GoabCalendarOnChangeDetail, Margins } from "@abgov/ui-components-common";
 
 interface WCProps extends Margins {
-  ref: React.RefObject<HTMLElement>;
+  ref: React.RefObject<HTMLElement | null>;
   name?: string;
   value?: string;
   min?: string;
   max?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-calendar": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
-
-export interface GoACalendarProps extends Margins {
+export interface GoabCalendarProps extends Margins {
   name?: string;
   value?: Date;
   min?: Date;
   max?: Date;
-  onChange: (name: string, value: Date) => void;
+  testId?: string;
+  onChange: (details: GoabCalendarOnChangeDetail) => void;
 }
 
-export function GoACalendar({
+export function GoabCalendar({
   name,
   value,
   min,
   max,
+  testId,
   mt,
   mr,
   mb,
   ml,
   onChange,
-}: GoACalendarProps): JSX.Element {
+}: GoabCalendarProps): JSX.Element {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!ref.current) {
@@ -45,7 +46,10 @@ export function GoACalendar({
     }
     const current = ref.current;
     current.addEventListener("_change", (e: Event) => {
-      onChange(name || "", (e as CustomEvent).detail.value);
+      onChange({
+        name: name || "",
+        value: (e as CustomEvent).detail.value,
+      });
     });
   });
 
@@ -56,6 +60,7 @@ export function GoACalendar({
       value={value?.toISOString()}
       min={min?.toISOString()}
       max={max?.toISOString()}
+      testid={testId}
       mt={mt}
       mr={mr}
       mb={mb}
@@ -64,4 +69,4 @@ export function GoACalendar({
   );
 }
 
-export default GoACalendar;
+export default GoabCalendar;

@@ -1,38 +1,33 @@
 import { Link, Outlet } from "react-router-dom";
-import { GoAAppFooter, GoAAppHeader, GoAMicrositeHeader, GoAOneColumnLayout, GoASideMenu, GoASideMenuGroup } from "@abgov/react-components";
+
+import { TestContent } from "./TestContent";
+
+import {
+  GoabAppFooter,
+  GoabAppHeader,
+  GoabMicrositeHeader,
+  GoabOneColumnLayout,
+} from "@abgov/react-components";
 import "@abgov/style";
+
 
 export function App() {
   return (
-    <GoAOneColumnLayout>
+    <GoabOneColumnLayout>
       <section slot="header">
-        <GoAMicrositeHeader type="alpha" version="UAT" />
-        <GoAAppHeader url="/" heading="Design System">
-          <a href="/login">Sign in</a>
-        </GoAAppHeader>
+        <GoabMicrositeHeader type="alpha" version="UAT" />
+        <GoabAppHeader url="/" heading="Design System">
+          <a href="/all">View All</a>
+          <a href="/test">Test</a>
+        </GoabAppHeader>
       </section>
-      <div style={{ display: "flex" }}>
-        <section style={{ flex: "0 0 250px" }}>
-          <GoASideMenu>
-            <GoASideMenuGroup heading="Components">
-              <Link to="/">Nothing here</Link>
-
-              {/* Add links here */}
-
-            </GoASideMenuGroup>
-
-            {/* Add links here */}
-
-          </GoASideMenu>
-        </section>
-        <section>
-          <Outlet />
-        </section>
+      <div style={{ display: "flex", margin: "auto", width: "1024px" }}>
+        <Outlet />
       </div>
       <section slot="footer">
-        <GoAAppFooter />
+        <GoabAppFooter />
       </section>
-    </GoAOneColumnLayout>
+    </GoabOneColumnLayout>
   );
 }
 

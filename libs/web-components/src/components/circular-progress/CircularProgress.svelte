@@ -2,7 +2,7 @@
 
 <!-- Script -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { fade } from "svelte/transition";
   import noScroll from "../../common/no-scroll";
   import { typeValidator, toBoolean } from "../../common/utils";
@@ -27,6 +27,7 @@
   export let message: string = "";
   export let progress: number = -1;
   export let visible: string = "false";
+  export let testid: string = "";
 
   $: isVisible = toBoolean(visible);
 
@@ -37,6 +38,7 @@
   onMount(async () => {
     validateVariant(variant);
     validateSize(size);
+    await tick(); // needed to ensure Angular's delay, when rendering within a route, doesn't break things
     spinnerSize = size === "small" ? "large" : "xlarge";
     fullscreen = variant === "fullscreen";
     inline = variant === "inline";
@@ -50,6 +52,7 @@
       transition:fade={{ duration: 300 }}
       use:noScroll={{ enable: true }}
       class:fullscreen
+      data-testid={testid}
     >
       <goa-spinner size={spinnerSize} {progress} />
       {#if message}
@@ -57,7 +60,11 @@
       {/if}
     </div>
   {:else if inline}
-    <div class:inline class={"spinner-" + spinnerSize}>
+    <div
+      class:inline
+      class={"spinner-" + spinnerSize}
+      data-testid={testid}
+    >
       <goa-spinner size={spinnerSize} {progress} />
       {#if message}
         <div class="message">{message}</div>
@@ -80,7 +87,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: var(--goa-circular-progress-color-background);
   }
 
   .inline {
@@ -92,11 +99,11 @@
   }
 
   .spinner-large .message {
-    margin-top: 1.5rem;
-    font-size: 1.2rem;
+    margin-top: var(--goa-circular-progress-small-margin-top);
+    font: var(--goa-circular-progress-small-text);
   }
   .spinner-xlarge .message {
-    margin-top: 2rem;
-    font-size: 1.5rem;
+    margin-top: var(--goa-circular-progress-large-margin-top);
+    font: var(--goa-circular-progress-large-text);
   }
 </style>

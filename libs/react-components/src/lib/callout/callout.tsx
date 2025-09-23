@@ -1,21 +1,22 @@
-import { Margins } from "../../common/styling";
-
-export type GoACalloutType =
-  | "important"
-  | "information"
-  | "event"
-  | "success"
-  | "emergency";
-
-export type GoACalloutSize = "medium" | "large";
+import {
+  GoabCalloutAriaLive,
+  GoabCalloutSize,
+  GoabCalloutType,
+  GoabCalloutIconTheme,
+  Margins,
+} from "@abgov/ui-components-common";
 
 interface WCProps extends Margins {
   heading?: string;
-  type?: GoACalloutType;
-  size?: GoACalloutSize;
+  type?: GoabCalloutType;
+  size?: GoabCalloutSize;
+  arialive?: GoabCalloutAriaLive;
+  maxwidth?: string;
+  icontheme?: GoabCalloutIconTheme;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -24,41 +25,48 @@ declare global {
   }
 }
 
-export interface GoACalloutProps extends Margins {
+export interface GoabCalloutProps extends Margins {
   heading?: string;
-  type?: GoACalloutType;
-  size?: GoACalloutSize;
+  type?: GoabCalloutType;
+  size?: GoabCalloutSize;
+  iconTheme?: GoabCalloutIconTheme;
+  maxWidth?: string;
   testId?: string;
+  ariaLive?: GoabCalloutAriaLive;
   children?: React.ReactNode;
 }
 
-export type CalloutProps = GoACalloutProps;
-
-export const GoACallout = ({
+export const GoabCallout = ({
   heading,
   type = "information",
+  iconTheme = "outline",
   size = "large",
+  maxWidth,
   testId,
+  ariaLive = "off",
   children,
   mt,
   mr,
   mb,
   ml,
-}: GoACalloutProps) => {
+}: GoabCalloutProps) => {
   return (
     <goa-callout
       heading={heading}
       type={type}
       size={size}
+      maxwidth={maxWidth}
+      arialive={ariaLive}
+      icontheme={iconTheme}
       mt={mt}
       mr={mr}
       mb={mb}
       ml={ml}
-      data-testid={testId}
+      testid={testId}
     >
       {children}
     </goa-callout>
   );
-}
+};
 
-export default GoACallout;
+export default GoabCallout;

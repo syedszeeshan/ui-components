@@ -22,6 +22,7 @@ describe("FileUploadCard", () => {
         type="image/png"
         progress={23}
         error="true"
+        testId="foo"
       />
     );
 
@@ -31,6 +32,7 @@ describe("FileUploadCard", () => {
     expect(el?.getAttribute("type")).toBe("image/png");
     expect(el?.getAttribute("progress")).toBe("23");
     expect(el?.getAttribute("error")).toBe("true");
+    expect(el?.getAttribute("testid")).toBe("foo");
   });
 
   it("dispatches and event when cancel is clicked while uploading", () => {
@@ -83,4 +85,24 @@ describe("FileUploadCard", () => {
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
+
+  it("FileUploadCard should render without testId (testId is optional)", () => {
+    const { container } = render(
+      <FileUploadCard
+        filename="bar.pdf"
+        size={1e3}
+        type="application/pdf"
+        progress={50}
+      />,
+    );
+
+    const el = container.querySelector("goa-file-upload-card");
+    expect(el?.getAttribute("filename")).toBe("bar.pdf");
+    expect(el?.getAttribute("size")).toBe("1000");
+    expect(el?.getAttribute("type")).toBe("application/pdf");
+    expect(el?.getAttribute("progress")).toBe("50");
+    // testid should be undefined when not provided
+    expect(el?.getAttribute("testid")).toBeNull();
+  });
+
 });

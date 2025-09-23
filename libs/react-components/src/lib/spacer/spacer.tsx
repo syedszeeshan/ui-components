@@ -1,12 +1,16 @@
-import { Spacing } from "../../common/styling";
+import {
+  GoabSpacerHorizontalSpacing,
+  GoabSpacerVerticalSpacing,
+} from "@abgov/ui-components-common";
 
 /* eslint-disable-next-line */
 interface WCProps {
-  hspacing?: Spacing | "fill";
-  vspacing?: Spacing;
+  hspacing?: GoabSpacerHorizontalSpacing;
+  vspacing?: GoabSpacerVerticalSpacing;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -16,22 +20,20 @@ declare global {
 }
 
 /* eslint-disable-next-line */
-export interface GoASpacerProps {
-  hSpacing?: Spacing | "fill";
-  vSpacing?: Spacing;
+export interface GoabSpacerProps {
+  hSpacing?: GoabSpacerHorizontalSpacing;
+  vSpacing?: GoabSpacerVerticalSpacing;
   testId?: string;
 }
 
-export type SpacerProps = GoASpacerProps;
-
-export function GoASpacer(props: GoASpacerProps) {
+export function GoabSpacer(props: GoabSpacerProps) {
   return (
     <goa-spacer
       hspacing={props.hSpacing}
       vspacing={props.vSpacing}
-      data-testid={props.testId}
+      testid={props.testId}
     />
   );
 }
 
-export default GoASpacer;
+export default GoabSpacer;

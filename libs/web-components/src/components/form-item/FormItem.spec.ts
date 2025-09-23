@@ -1,4 +1,4 @@
-import { render, cleanup } from "@testing-library/svelte";
+import { render, fireEvent, cleanup } from "@testing-library/svelte";
 import GoAFormItem from "./FormItem.svelte";
 import { it, describe } from "vitest";
 
@@ -9,7 +9,7 @@ describe("GoA FormItem", () => {
     const result = render(GoAFormItem, { testid: "foo" });
     const el = result.queryByTestId("foo");
 
-    const label = el.querySelector(".label");
+    const label = el?.querySelector(".label");
     expect(label).toBeFalsy();
 
     const requirement = document.querySelector("em");
@@ -29,7 +29,7 @@ describe("GoA FormItem", () => {
     });
     const el = result.queryByTestId("foo");
 
-    const label = el.querySelector(".label");
+    const label = el?.querySelector(".label");
     expect(label).toBeTruthy();
 
     const requirement = document.querySelector("em");
@@ -50,11 +50,11 @@ describe("GoA FormItem", () => {
     });
     const el = result.queryByTestId("foo");
 
-    const label = el.querySelector(".label");
+    const label = el?.querySelector(".label");
     expect(label).toBeTruthy();
 
     const requirement = document.querySelector("em");
-    expect(requirement.innerHTML).toContain("optional");
+    expect(requirement?.innerHTML).toContain("optional");
 
     const helpText = document.querySelector(".help-msg");
     expect(helpText).toBeFalsy();
@@ -71,11 +71,11 @@ describe("GoA FormItem", () => {
     });
     const el = result.queryByTestId("foo");
 
-    const label = el.querySelector(".label");
+    const label = el?.querySelector(".label");
     expect(label).toBeTruthy();
 
     const requirement = document.querySelector("em");
-    expect(requirement.innerHTML).toContain("required");
+    expect(requirement?.innerHTML).toContain("required");
 
     const helpText = document.querySelector(".help-msg");
     expect(helpText).toBeFalsy();
@@ -85,26 +85,31 @@ describe("GoA FormItem", () => {
   });
 
   it("should render all params", async () => {
-    render(GoAFormItem, {
+    const baseElement = render(GoAFormItem, {
       label: "the label",
+      labelsize: "large",
+      maxwidth: "480px",
       helptext: "the helptext",
       requirement: "optional",
       error: "the error",
-      id: "labelId",
+      testid: "formitem-test",
     });
 
+    const formitem = await baseElement.findByTestId("formitem-test");
     const label = document.querySelector(".label");
-    expect(label.innerHTML).toContain("the label");
-    expect(label.getAttribute("id")).toBe("labelId");
+
+    expect(formitem?.getAttribute("style")).toContain("max-width: 480px;");
+    expect(label?.innerHTML).toContain("the label");
+    expect(label?.classList).toContain("large");
 
     const requirement = document.querySelector("em");
-    expect(requirement.innerHTML).toContain("optional");
+    expect(requirement?.innerHTML).toContain("optional");
 
     const helpText = document.querySelector(".help-msg");
-    expect(helpText.innerHTML).toContain("the helptext");
+    expect(helpText?.innerHTML).toContain("the helptext");
 
     const errMsg = document.querySelector(".error-msg");
-    expect(errMsg.innerHTML).toContain("the error");
+    expect(errMsg?.innerHTML).toContain("the error");
   });
 
   it("should not render options if not provided", async () => {
@@ -124,7 +129,9 @@ describe("GoA FormItem", () => {
   });
 
   it("should not show any text for a field when requirement value is mispelled/invalid", async () => {
-    const mock = vi.spyOn(console, "error").mockImplementation(() => { /* do nothing */ });
+    const mock = vi.spyOn(console, "error").mockImplementation(() => {
+      /* do nothing */
+    });
 
     render(GoAFormItem, {
       label: "Credit Card Number",
@@ -163,5 +170,99 @@ describe("GoA FormItem", () => {
       expect(formitem).toHaveStyle("margin-bottom:var(--goa-space-l)");
       expect(formitem).toHaveStyle("margin-left:var(--goa-space-xl)");
     });
+  });
+
+  it("should have both label and helper text accessible without overriding", async () => {
+    const result = render(GoAFormItem, {
+      testid: "formitem-test",
+      label: "Test Label",
+      helptext: "Helper Text",
+    });
+    const formItem = await result.findByTestId("formitem-test");
+
+    const label = formItem.querySelector(".label");
+    expect(label).toBeTruthy();
+    expect(label?.textContent).toContain("Test Label");
+
+    const helperText = formItem.querySelector(".help-msg");
+    expect(helperText).toBeTruthy();
+    expect(helperText?.textContent).toContain("Helper Text");
+
+    // Ensure both label and helper text are present and distinct
+    expect(formItem.textContent).toContain("Test Label");
+    expect(formItem.textContent).toContain("Helper Text");
+  });
+
+  it("should display error text when provided", async () => {
+    const result = render(GoAFormItem, {
+      testid: "formitem-test",
+      label: "Test Label",
+      error: "Error Message",
+    });
+    const formItem = await result.findByTestId("formitem-test");
+
+    const errorText = formItem.querySelector(".error-msg");
+    expect(errorText).toBeTruthy();
+    expect(errorText?.textContent).toContain("Error Message");
+
+    // Ensure error text is present in the component
+    expect(formItem.textContent).toContain("Error Message");
+  });
+
+  it("should update aria-describedby", async () => {
+    const { component, findByTestId } = render(GoAFormItem, {
+      testid: "formitem-test",
+      label: "Test Label",
+      helptext: "Helper Text",
+    });
+
+    const formItem = await findByTestId("formitem-test");
+    const input = document.createElement("input");
+    formItem.appendChild(input);
+
+    // Simulate input mounted event
+    await fireEvent(
+      formItem,
+      new CustomEvent("form-field::bind", {
+        detail: { el: input },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+
+    // Initially, only helptext should be in aria-describedby
+    expect(input.getAttribute("aria-describedby")).toBeTruthy();
+    expect(input.getAttribute("aria-describedby")).toContain("helptext-");
+
+    // Simulate error state change
+    await fireEvent(
+      formItem,
+      new CustomEvent("error::change", {
+        detail: { isError: true },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+
+    // Now both error and helptext should be in aria-describedby
+    const describedBy = input.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(describedBy).toContain("error-");
+    expect(describedBy).toContain("helptext-");
+
+    // Simulate error state change back to no error
+    await fireEvent(
+      formItem,
+      new CustomEvent("error::change", {
+        detail: { isError: false },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+
+    // Back to only helptext in aria-describedby
+    expect(input.getAttribute("aria-describedby")).toBeTruthy();
+    expect(input.getAttribute("aria-describedby")).toContain("helptext-");
+    expect(input.getAttribute("aria-describedby")).not.toContain("error-");
   });
 });

@@ -1,63 +1,56 @@
-import { useEffect, useRef } from "react";
-import { GoAIconType } from "../..";
+import { useEffect, useRef, type JSX } from "react";
 import { format, isValid, parseISO } from "date-fns";
-import { Margins } from "../../common/styling";
+import {
+  GoabAutoCapitalize,
+  GoabDate,
+  GoabIconType,
+  GoabInputOnBlurDetail,
+  GoabInputOnChangeDetail,
+  GoabInputOnFocusDetail,
+  GoabInputOnKeyPressDetail,
+  GoabInputType,
+  Margins,
+} from "@abgov/ui-components-common";
 
-export type GoADate = Date | string;
-
-export type GoAInputType =
-  | "text"
-  | "password"
-  | "email"
-  | "number"
-  | "date"
-  | "datetime-local"
-  | "month"
-  | "range"
-  | "search"
-  | "tel"
-  | "time"
-  | "url"
-  | "week";
-
-export type GoAAutoCapitalize =
-  | "on"
-  | "off"
-  | "none"
-  | "sentences"
-  | "words"
-  | "characters";
+export interface IgnoreMe {
+  ignore: string;
+}
 
 interface WCProps extends Margins {
-  ref?: React.MutableRefObject<HTMLInputElement | null>;
-  type?: GoAInputType;
+  ref?: React.RefObject<HTMLInputElement | null>;
+  type?: GoabInputType;
   name: string;
   value?: string;
   id?: string;
-  autocapitalize?: GoAAutoCapitalize;
+  autocapitalize?: GoabAutoCapitalize;
+  autocomplete?: string;
   debounce?: number;
   placeholder?: string;
   leadingicon?: string;
   trailingicon?: string;
   variant: string;
-  disabled?: boolean;
-  error?: boolean;
-  readonly?: boolean;
-  focused?: boolean;
-  handletrailingiconclick: boolean;
+  disabled?: string;
+  error?: string;
+  readonly?: string;
+  focused?: string;
+  handletrailingiconclick: string;
   width?: string;
   prefix?: string;
   suffix?: string;
   arialabel?: string;
+  testid?: string;
+  textalign?: string;
 
   // type=number
   min?: string | number;
   max?: string | number;
   step?: number;
   maxlength?: number;
+
+  trailingiconarialabel?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -74,10 +67,11 @@ interface BaseProps extends Margins {
   id?: string;
   debounce?: number;
   disabled?: boolean;
-  autoCapitalize?: GoAAutoCapitalize;
+  autoCapitalize?: GoabAutoCapitalize;
+  autoComplete?: string;
   placeholder?: string;
-  leadingIcon?: GoAIconType;
-  trailingIcon?: GoAIconType;
+  leadingIcon?: GoabIconType;
+  trailingIcon?: GoabIconType;
   onTrailingIconClick?: () => void;
   variant?: "goa" | "bare";
   focused?: boolean;
@@ -91,15 +85,17 @@ interface BaseProps extends Margins {
   leadingContent?: React.ReactNode;
   trailingContent?: React.ReactNode;
   maxLength?: number;
+  trailingIconAriaLabel?: string;
+  textAlign?: "left" | "right";
 }
 
-type OnChange<T = string> = (name: string, value: T) => void;
-type OnFocus<T = string> = (name: string, value: T) => void;
-type OnBlur<T = string> = (name: string, value: T) => void;
-type OnKeyPress<T = string> = (name: string, value: T, key: string) => void;
+type OnChange<T = string> = (detail: GoabInputOnChangeDetail<T>) => void;
+type OnFocus<T = string> = (detail: GoabInputOnFocusDetail<T>) => void;
+type OnBlur<T = string> = (detail: GoabInputOnBlurDetail<T>) => void;
+type OnKeyPress<T = string> = (detail: GoabInputOnKeyPressDetail<T>) => void;
 
-export interface GoAInputProps extends BaseProps {
-  onChange: OnChange<string>;
+export interface GoabInputProps extends BaseProps {
+  onChange?: OnChange<string>;
   value?: string;
   min?: number | string;
   max?: number | string;
@@ -109,8 +105,8 @@ export interface GoAInputProps extends BaseProps {
   onKeyPress?: OnKeyPress<string>;
 }
 
-interface GoANumberInputProps extends BaseProps {
-  onChange: OnChange<number>;
+interface GoabNumberInputProps extends BaseProps {
+  onChange?: OnChange<number>;
   value?: number;
   min?: number;
   max?: number;
@@ -120,23 +116,24 @@ interface GoANumberInputProps extends BaseProps {
   onKeyPress?: OnKeyPress<number>;
 }
 
-interface GoADateInputProps extends BaseProps {
-  onChange: OnChange<GoADate>;
-  value?: GoADate;
-  min?: GoADate;
-  max?: GoADate;
+interface GoabDateInputProps extends BaseProps {
+  onChange?: OnChange<GoabDate>;
+  value?: GoabDate;
+  min?: GoabDate;
+  max?: GoabDate;
   step?: number;
-  onFocus?: OnFocus<GoADate>;
-  onBlur?: OnBlur<GoADate>;
-  onKeyPress?: OnKeyPress<GoADate>;
+  onFocus?: OnFocus<GoabDate>;
+  onBlur?: OnBlur<GoabDate>;
+  onKeyPress?: OnKeyPress<GoabDate>;
 }
 
-export function GoAInput({
+export function GoabInput({
   id,
   debounce,
   name,
   type,
   autoCapitalize,
+  autoComplete,
   leadingIcon,
   trailingIcon,
   variant = "goa",
@@ -161,46 +158,49 @@ export function GoAInput({
   leadingContent,
   trailingContent,
   maxLength,
+  trailingIconAriaLabel,
+  textAlign = "left",
   onTrailingIconClick,
   onChange,
   onFocus,
   onBlur,
   onKeyPress,
-}: GoAInputProps & { type?: GoAInputType }): JSX.Element {
+}: GoabInputProps & { type?: GoabInputType }): JSX.Element {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!ref.current) {
       return;
     }
     const current = ref.current;
-    const changeListener = (e: unknown) => {
-      const { name, value } = (e as CustomEvent).detail;
-      onChange(name, value);
+    const changeListener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabInputOnChangeDetail>).detail;
+      onChange?.(detail);
     };
     const clickListener = () => {
       onTrailingIconClick?.();
     };
 
-    const focusListener = (e: unknown) => {
-      const { name, value } = (e as CustomEvent).detail;
-      onFocus?.(name, value);
+    const focusListener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabInputOnFocusDetail>).detail;
+      onFocus?.(detail);
     };
 
-    const blurListener = (e: unknown) => {
-      const { name, value } = (e as CustomEvent).detail;
-      onBlur?.(name, value);
+    const blurListener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabInputOnBlurDetail>).detail;
+      onBlur?.(detail);
     };
 
-    const keypressListener = (e: unknown) => {
-      const { name, value, key } = (e as CustomEvent).detail;
-      onKeyPress?.(name, value, key);
-    }
+    const keypressListener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabInputOnKeyPressDetail>).detail;
+      onKeyPress?.(detail);
+    };
 
     current.addEventListener("_change", changeListener);
     current.addEventListener("_trailingIconClick", clickListener);
     current.addEventListener("_focus", focusListener);
     current.addEventListener("_blur", blurListener);
     current.addEventListener("_keyPress", keypressListener);
+
     return () => {
       current.removeEventListener("_change", changeListener);
       current.removeEventListener("_trailingIconClick", clickListener);
@@ -214,19 +214,20 @@ export function GoAInput({
     <goa-input
       ref={ref}
       debounce={debounce}
-      focused={focused}
+      focused={focused ? "true" : undefined}
       type={type}
       name={name}
       autocapitalize={autoCapitalize}
+      autocomplete={autoComplete}
       id={id}
       leadingicon={leadingIcon}
       trailingicon={trailingIcon}
       variant={variant}
-      disabled={disabled}
-      readonly={readonly}
+      disabled={disabled ? "true" : undefined}
+      readonly={readonly ? "true" : undefined}
       placeholder={placeholder}
-      error={error}
-      data-testid={testId}
+      error={error ? "true" : undefined}
+      testid={testId}
       value={value}
       width={width}
       min={min}
@@ -240,7 +241,9 @@ export function GoAInput({
       mr={mr}
       mb={mb}
       ml={ml}
-      handletrailingiconclick={!!onTrailingIconClick}
+      handletrailingiconclick={onTrailingIconClick ? "true" : "false"}
+      trailingiconarialabel={trailingIconAriaLabel}
+      textalign={textAlign}
     >
       {leadingContent && <div slot="leadingContent">{leadingContent}</div>}
       {trailingContent && <div slot="trailingContent">{trailingContent}</div>}
@@ -248,30 +251,36 @@ export function GoAInput({
   );
 }
 
-const onDateChangeHandler = (onChange: OnChange<GoADate>) => {
-  return (name: string, value: string) => {
-
+const onDateChangeHandler = (onChange?: OnChange<GoabDate>) => {
+  return ({ name, value }: GoabInputOnChangeDetail<string | Date>) => {
     if (!value) {
-      onChange(name, "");
+      onChange?.({ name, value: "" });
       return;
     }
-    if (isValid(new Date(value))) {
-      onChange(name, parseISO(value));
+    // valid string date
+    if (typeof value === "string" && isValid(new Date(value))) {
+      onChange?.({ name, value: parseISO(value) });
+      return;
+    }
+    // valid date
+    if (isValid(value)) {
+      onChange?.({ name, value });
+      return;
     }
   };
 };
 
-const onTimeChangeHandler = (onChange: OnChange) => {
-  return (name: string, value: string) => {
+const onTimeChangeHandler = (onChange?: OnChange) => {
+  return ({ name, value }: GoabInputOnChangeDetail) => {
     if (!value) {
-      onChange(name, "");
+      onChange?.({ name, value: "" });
       return;
     }
-    onChange(name, value);
+    onChange?.({ name, value });
   };
 };
 
-function toString(value: GoADate | null | undefined, tmpl = "yyyy-MM-dd"): string {
+function toString(value: GoabDate | null | undefined, tmpl = "yyyy-MM-dd"): string {
   if (!value) {
     return "";
   }
@@ -284,22 +293,22 @@ function toString(value: GoADate | null | undefined, tmpl = "yyyy-MM-dd"): strin
   return format(value, tmpl);
 }
 
-export function GoAInputText(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="text" />;
+export function GoabInputText(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="text" />;
 }
 
-export function GoAInputPassword(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="password" />;
+export function GoabInputPassword(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="password" />;
 }
 
-export function GoAInputDate({
+export function GoabInputDate({
   value,
   min = "",
   max = "",
   ...props
-}: GoADateInputProps): JSX.Element {
+}: GoabDateInputProps): JSX.Element {
   return (
-    <GoAInput
+    <GoabInput
       {...props}
       type="date"
       onChange={onDateChangeHandler(props.onChange)}
@@ -310,14 +319,14 @@ export function GoAInputDate({
   );
 }
 
-export function GoAInputTime({
+export function GoabInputTime({
   value,
   min = "",
   max = "",
   ...props
-}: GoAInputProps): JSX.Element {
+}: GoabInputProps): JSX.Element {
   return (
-    <GoAInput
+    <GoabInput
       {...props}
       onChange={onTimeChangeHandler(props.onChange)}
       value={value}
@@ -326,14 +335,14 @@ export function GoAInputTime({
   );
 }
 
-export function GoAInputDateTime({
+export function GoabInputDateTime({
   value,
   min = "",
   max = "",
   ...props
-}: GoADateInputProps): JSX.Element {
+}: GoabDateInputProps): JSX.Element {
   return (
-    <GoAInput
+    <GoabInput
       {...props}
       onChange={onDateChangeHandler(props.onChange)}
       value={toString(value, "yyyy-MM-dd'T'HH:mm")}
@@ -342,58 +351,59 @@ export function GoAInputDateTime({
   );
 }
 
-export function GoAInputEmail(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="email" />;
+export function GoabInputEmail(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="email" />;
 }
 
-export function GoAInputSearch(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="search" trailingIcon="search" />;
+export function GoabInputSearch(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="search" trailingIcon="search" />;
 }
 
-export function GoAInputUrl(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="url" />;
+export function GoabInputUrl(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="url" />;
 }
 
-export function GoAInputTel(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="tel" />;
+export function GoabInputTel(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="tel" />;
 }
 
-export function GoAInputFile(props: GoAInputProps): JSX.Element {
+export function GoabInputFile(props: GoabInputProps): JSX.Element {
   return (
     <input
       id={props.id}
       name={props.name}
       type="file"
-      onChange={(e) => props.onChange(e.target.name, e.target.value)}
+      onChange={(e) => props.onChange?.({ name: e.target.name, value: e.target.value })}
       style={{ backgroundColor: "revert" }}
     />
   );
 }
 
-export function GoAInputMonth(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="month" />;
+export function GoabInputMonth(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="month" />;
 }
 
-export function GoAInputNumber({
+export function GoabInputNumber({
   min = Number.MIN_VALUE,
   max = Number.MAX_VALUE,
   value,
+  textAlign = "right",
   ...props
-}: GoANumberInputProps): JSX.Element {
-  const onNumberChange = (name: string, value: string) => {
-    props.onChange(name, parseFloat(value));
+}: GoabNumberInputProps): JSX.Element {
+  const onNumberChange = ({ name, value }: GoabInputOnChangeDetail) => {
+    props.onChange?.({ name, value: parseFloat(value) });
   };
-  const onFocus = (name: string, value: string) => {
-    props.onFocus?.(name, parseFloat(value));
+  const onFocus = ({ name, value }: GoabInputOnFocusDetail) => {
+    props.onFocus?.({ name, value: parseFloat(value) });
   };
-  const onBlur = (name: string, value: string) => {
-    props.onBlur?.(name, parseFloat(value));
+  const onBlur = ({ name, value }: GoabInputOnBlurDetail) => {
+    props.onBlur?.({ name, value: parseFloat(value) });
   };
-  const onKeyPress = (name: string, value: string, key: string) => {
-    props.onKeyPress?.(name, parseFloat(value), key);
+  const onKeyPress = ({ name, value, key }: GoabInputOnKeyPressDetail) => {
+    props.onKeyPress?.({ name, value: parseFloat(value), key: parseInt(key) });
   };
   return (
-    <GoAInput
+    <GoabInput
       {...props}
       onChange={onNumberChange}
       min={min?.toString()}
@@ -403,12 +413,13 @@ export function GoAInputNumber({
       onBlur={onBlur}
       type="number"
       onKeyPress={onKeyPress}
+      textAlign={textAlign}
     />
   );
 }
 
-export function GoAInputRange(props: GoAInputProps): JSX.Element {
-  return <GoAInput {...props} type="range" />;
+export function GoabInputRange(props: GoabInputProps): JSX.Element {
+  return <GoabInput {...props} type="range" />;
 }
 
-export default GoAInput;
+export default GoabInput;

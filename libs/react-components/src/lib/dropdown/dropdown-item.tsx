@@ -1,50 +1,58 @@
 import { useEffect } from "react";
+import { GoabDropdownItemMountType } from "@abgov/ui-components-common";
 
 interface WCProps {
   value: string;
   label?: string;
   filter?: string;
+  mount?: GoabDropdownItemMountType;
 
   // @deprecated
   name?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IntrinsicElements {
       "goa-dropdown-item": WCProps & React.HTMLAttributes<HTMLElement>;
     }
   }
 }
 
-export interface GoADropdownItemProps {
+export interface GoabDropdownItemProps {
   value: string;
   label?: string;
   filter?: string;
   testId?: string;
+  mountType?: GoabDropdownItemMountType;
 
   // @deprecated
   name?: string;
 }
 
-export function GoADropdownOption(props: GoADropdownItemProps) {
+export function GoabDropdownOption(props: GoabDropdownItemProps) {
   useEffect(() => {
-    console.warn("GoADropdownOption is deprecated. Please use GoADropdownItem");
+    console.warn("GoabDropdownOption is deprecated. Please use GoabDropdownItem");
   }, []);
 
-  return <GoADropdownItem {...props} />;
+  return <GoabDropdownItem {...props} />;
 }
 
-export function GoADropdownItem({ value, label, filter, name, testId }: GoADropdownItemProps) {
+export function GoabDropdownItem({
+  value,
+  label,
+  filter,
+  name,
+  mountType = "append",
+}: GoabDropdownItemProps) {
   return (
     <goa-dropdown-item
-      data-testid={testId}
       value={value}
       label={label}
       filter={filter}
       name={name}
+      mount={mountType}
     />
   );
 }

@@ -5,7 +5,8 @@
   "projectType": "library",
   "tags": [],
   "implicitDependencies": [
-    "web-components"
+    "web-components",
+    "common"
   ],
   "targets": {
     "lint": {
@@ -21,7 +22,9 @@
       ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libs/react-components"
+        "outputPath": "dist/libs/react-components",
+        "project": "libs/react-components/src/package.json",
+        "entryFile": "libs/react-components/src/index.ts"
       },
       "configurations": {
         "development": {

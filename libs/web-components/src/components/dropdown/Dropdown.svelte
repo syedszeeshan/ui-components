@@ -5,14 +5,34 @@
 
   import type { GoAIconType } from "../icon/Icon.svelte";
   import type { Spacing } from "../../common/styling";
-  import { fromBoolean, toBoolean } from "../../common/utils";
+  import type {
+    DropdownItemDestroyRelayDetail,
+    DropdownItemMountedRelayDetail,
+    Option,
+  } from "./DropdownItem.svelte";
+  import {
+    DropdownItemDestroyMsg,
+    DropdownItemMountedMsg,
+  } from "./DropdownItem.svelte";
+  import {
+    dispatch,
+    ensureSlotExists,
+    fromBoolean,
+    receive,
+    relay,
+    toBoolean,
+  } from "../../common/utils";
   import { calculateMargin } from "../../common/styling";
-
-  interface Option {
-    label: string;
-    value: string;
-    filter: string;
-  }
+  import {
+    FieldsetErrorRelayDetail,
+    FieldsetResetErrorsMsg,
+    FieldsetSetErrorMsg,
+    FormFieldMountMsg,
+    FormFieldMountRelayDetail,
+    FieldsetSetValueMsg,
+    FieldsetSetValueRelayDetail,
+    FieldsetResetFieldsMsg,
+  } from "../../types/relay-types";
 
   interface EventHandler {
     handleKeyUp: (e: KeyboardEvent) => void;
@@ -24,7 +44,7 @@
   export let name: string;
   export let arialabel: string = "";
   export let arialabelledby: string = "";
-  export let value: string = "";
+  export let value: string | undefined = "";
   export let filterable: string = "false";
   export let leadingicon: GoAIconType | null = null;
   export let maxheight: string = "276px";
@@ -34,25 +54,29 @@
   export let error: string = "false";
   export let multiselect: string = "false";
   export let native: string = "false";
-  export let relative: string = "false";
+  /***
+   * @deprecated This property has no effect and will be removed in a future version
+   */
+  export let relative: string = "";
   export let mt: Spacing = null;
   export let mr: Spacing = null;
   export let mb: Spacing = null;
   export let ml: Spacing = null;
+  export let autocomplete: string = "";
+  export let testid: string = "";
 
   //
   // Private
-  //
 
   let _options: Option[] = [];
+  let _selectedOption: Option | undefined;
   let _isMenuVisible = false;
   let _highlightedIndex: number = -1;
   let _width: string;
+  let _popoverMaxWidth: string;
 
-  let _wrapperEl: HTMLElement;
   let _rootEl: HTMLElement;
   let _menuEl: HTMLElement;
-  let _selectEl: HTMLSelectElement;
   let _inputEl: HTMLInputElement;
   let _eventHandler: EventHandler;
 
@@ -60,12 +84,19 @@
   let _filteredOptions: Option[] = [];
   let _values: string[] = [];
 
+  let _bindTimeoutId: any;
+
+  let _mountStatus: "active" | "ready" = "ready";
+  let _mountTimeoutId: any = undefined;
+  let _error = toBoolean(error);
+  let _prevError = _error;
+  let _dropdownWidth = "auto"; // Default to auto
+
   //
   // Reactive
   //
 
   $: _disabled = toBoolean(disabled);
-  $: _error = toBoolean(error);
   $: _multiselect = toBoolean(multiselect);
   $: _native = toBoolean(native);
   $: _filterable = toBoolean(filterable) && !_native;
@@ -75,11 +106,55 @@
     ? _filteredOptions[_highlightedIndex].value
     : undefined;
 
+  // make updates if the values are changed
   $: {
-    _values = parseValues(value);
-    // updating _inputEl.value is done within seperate function
-    // to prevent unwanted reactive updates.
-    setDisplayedValue();
+    _values = parseValues(value || "");
+    setSelected();
+  }
+
+  $: {
+    // Calculate the base width
+    if (width) {
+      const unitPattern = /(px|%|ch|rem|em)$/; // Regex to detect valid units
+      if (unitPattern.test(width)) {
+        _width = width; // Use the provided width with a valid unit
+      } else {
+        _width = `${width}px`; // Default to px if no unit is provided
+      }
+    } else {
+      _width = getLongestChildWidth(_options); // Calculate based on the longest option
+    }
+
+    // avoid double apply for % widths
+    if (_inputEl) {
+      // for % widths use the % value instead
+      if (width?.includes("%")) {
+        _dropdownWidth = width;
+      } else {
+        _dropdownWidth = `${_inputEl.offsetWidth}px`; // Match input width dynamically
+      }
+    }
+
+    // Set popover max width
+    if (width?.includes("%")) {
+      _popoverMaxWidth = "100%"; // let the parent's % width constraint handle it
+    } else {
+      _popoverMaxWidth = `min(${_width}, 100%)`;
+    }
+  }
+
+  // TODO: Syed can you add a comment here describing what this does?
+  $: {
+    _error = toBoolean(error);
+    if (_error !== _prevError) {
+      dispatch(
+        _rootEl,
+        "error::change",
+        { isError: _error },
+        { bubbles: true },
+      );
+      _prevError = _error;
+    }
   }
 
   //
@@ -87,69 +162,116 @@
   //
 
   onMount(async () => {
+    ensureSlotExists(_rootEl);
+    addRelayListener();
+    sendMountedMessage();
     await tick();
     _eventHandler = _filterable
       ? new ComboboxKeyUpHandler(_inputEl)
       : new DropdownKeyUpHandler(_inputEl);
-
-    // the following is required to appease the unit testing gods in that they don't respond
-    // to the slotchange event
-    _options = getOptions();
-
-    if (!_native) {
-      _inputEl.value = _options.find((o) => o.value === value)?.label ?? "";
-
-      if (width) {
-        _width = width;
-        if (width.endsWith("%")) {
-          calculatePercentWidth();
-        } else {
-          _width = width;
-        }
-      }
-
-      // This is only here to allow the tests to pass :(
-      if (!width && _options.length > 0) {
-        _width = getLongestChildWidth(_options);
-      }
-    }
-
-    syncFilteredOptions();
-
-    // watch for DOM changes within the slot => dynamic binding
-    const slot = _rootEl.querySelector("slot");
-    slot?.addEventListener("slotchange", () => {
-      if (!_rootEl) return;
-
-      _options = getOptions();
-      syncFilteredOptions();
-
-      if (!width) {
-        _width = getLongestChildWidth(_options);
-      }
-
-      if (!_native) {
-        setDisplayedValue();
-      }
-    });
+    showDeprecationWarnings();
   });
 
   //
   // Functions
   //
 
-  function calculatePercentWidth() {
-    const rootWidth = _wrapperEl.getBoundingClientRect()?.width;
-    const percent = parseInt(width) / 100;
-    _width = percent * rootWidth + "px";
+  function showDeprecationWarnings() {
+    if (relative != "") {
+      console.warn(
+        "Dropdown `relative` property is deprecated. It should be removed from your code because it is no longer needed to help with positioning.",
+      );
+    }
   }
 
-  // prevents unwanted reactive updates.
-  function setDisplayedValue() {
-    if (_inputEl) {
-      const option = _options.find((o) => o.value == _values[0]); // possible string number comparison
-      _inputEl.value = option?.label ?? option?.value ?? "";
+  function addRelayListener() {
+    receive(_rootEl, (action, data, event) => {
+      switch (action) {
+        case FieldsetSetValueMsg:
+          onSetValue(data as FieldsetSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          setError(data as FieldsetErrorRelayDetail);
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+        case FieldsetResetFieldsMsg:
+          onSetValue({ name, value: "" });
+          break;
+        case DropdownItemMountedMsg:
+          onChildMounted(data as DropdownItemMountedRelayDetail);
+          break;
+        case DropdownItemDestroyMsg:
+          onChildDestroyed(data as DropdownItemDestroyRelayDetail);
+          break;
+      }
+    });
+  }
+
+  function setError(detail: FieldsetErrorRelayDetail) {
+    error = detail.error ? "true" : "false";
+  }
+
+  function onSetValue(detail: FieldsetSetValueRelayDetail) {
+    // @ts-expect-error
+    value = detail.value;
+    dispatch(_rootEl, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    relay<FormFieldMountRelayDetail>(
+      _rootEl,
+      FormFieldMountMsg,
+      { name, el: _rootEl },
+      { bubbles: true, timeout: 10 },
+    );
+  }
+
+  /**
+   * Called when a new child option is added to the slot. This component must send
+   * a reference to itself back to the child to allow for the child to send messages
+   * back to the parent after it is detached from the DOM.
+   * @param detail
+   */
+  function onChildMounted(detail: DropdownItemMountedRelayDetail) {
+    switch (detail.mountType) {
+      case "append":
+        _options = [..._options, detail];
+        break;
+      case "prepend":
+        _options = [detail, ..._options];
+        break;
+      case "reset":
+        _options = [..._options, detail];
+        break;
     }
+
+    // send message back to child that contains a reference to this component
+    relay(detail.el, "dropdown:bind", { el: _rootEl });
+
+    // ensure bind only runs once for all children
+    if (_bindTimeoutId) {
+      clearTimeout(_bindTimeoutId);
+    }
+    _bindTimeoutId = setTimeout(() => {
+      syncFilteredOptions();
+      if (!_native) {
+        setSelected();
+      }
+    }, 1);
+  }
+
+  /**
+   * Called when a child is destroyed.
+   * @param detail
+   */
+  function onChildDestroyed(detail: DropdownItemDestroyRelayDetail) {
+    _options = _options.filter((option) => option.value !== detail.value);
+  }
+
+  function setSelected() {
+    _selectedOption = _options.find((o) => o.value == _values[0]);
   }
 
   // parse and convert values to strings to avoid later type comparison issues
@@ -165,35 +287,6 @@
     return rawValues.map((val: unknown) => `${val}`);
   }
 
-  function getChildren(): Element[] {
-    const slot = _rootEl.querySelector("slot") as HTMLSlotElement;
-    if (slot) {
-      // default
-      return slot.assignedElements();
-    }
-    // unit tests
-    const el = _native ? _selectEl : _rootEl;
-    // @ts-expect-error
-    return [...el.children] as Element[];
-  }
-
-  // Create a list of the options based on the children within the slot
-  // The children don't have to be goa-dropdown-item elements. Any child element
-  // work as long as it has a value and label content
-  function getOptions(): Option[] {
-    return getChildren()
-      .filter((child: Element) => child.tagName === "GOA-DROPDOWN-ITEM")
-      .map((el: Element) => {
-        const option = el as unknown as Option;
-        const value = el.getAttribute("value") || option.value || "";
-        const label =
-          el.getAttribute("label") || option.label || el.innerHTML || value;
-        const filter = el.getAttribute("filter") || label || value || "";
-
-        return { value, label, filter } as Option;
-      });
-  }
-
   // compute the required width to ensure all children fit
   function getLongestChildWidth(options: Option[]): string {
     // set width to longest item
@@ -205,15 +298,47 @@
       .sort((a: number, b: number) => (a > b ? 1 : -1))
       .pop();
 
-    // longest one defines the width
-    let maxWidth = Math.max(optionsWidth || 0, placeholder.length) + 8;
+    // calculate the maximum width based on the longest option or placeholder length
+    let maxWidth = Math.max(optionsWidth || 0, placeholder.length) + 7;
 
     // compensate for icon width
     if (leadingicon) {
-      maxWidth += 2;
+      maxWidth += 4;
     }
 
     return `${maxWidth}ch`;
+  }
+
+  function setHighlightedToSelected() {
+    if (!_selectedOption) {
+      _highlightedIndex = -1;
+      return;
+    }
+    const index = _filteredOptions.findIndex(
+      (option) => option.value === _selectedOption?.value,
+    );
+    _highlightedIndex = index;
+  }
+
+  function setHighlightedToBestMatch() {
+    if (_filteredOptions.length === 0) {
+      _highlightedIndex = -1;
+      return;
+    }
+    if (!_inputEl?.value || _inputEl.value === "") return;
+    const completeMatchIndex = _filteredOptions.findIndex((option) =>
+      isFilterMatch(option, _inputEl?.value || "", false),
+    );
+    if (completeMatchIndex >= 0) {
+      _highlightedIndex = completeMatchIndex;
+    } else {
+      const partialMatchIndex = _filteredOptions.findIndex((option) =>
+        isFilterMatch(option, _inputEl?.value || ""),
+      );
+      if (partialMatchIndex >= 0) {
+        _highlightedIndex = partialMatchIndex;
+      }
+    }
   }
 
   // Change the direction of highlighted options for Arrow up and down
@@ -229,11 +354,12 @@
       index = _filterable ? 0 : items.length - 1;
     }
     _highlightedIndex = index;
-    scrollToOption(index);
+    scrollToHighlighted();
   }
 
-  function scrollToOption(index: number) {
-    const liNode = _menuEl.querySelector(
+  function scrollToHighlighted() {
+    const index = _highlightedIndex;
+    const liNode = _menuEl?.querySelector(
       `li[data-index="${index}"]`,
     ) as HTMLLIElement;
     if (!liNode) return;
@@ -253,7 +379,9 @@
 
   function syncFilteredOptions() {
     _filteredOptions = _filterable
-      ? _options.filter((option) => isFilterMatch(option, _inputEl.value))
+      ? _options.filter((option) =>
+          isFilterMatch(option, _inputEl?.value || ""),
+        )
       : _options;
   }
 
@@ -262,35 +390,59 @@
       return;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       syncFilteredOptions();
       _isMenuVisible = true;
       _inputEl?.focus();
+      setTimeout(() => {
+        if (_inputEl?.value === "" && _selectedOption) {
+          reset();
+        }
+        setHighlightedToBestMatch();
+        scrollToHighlighted();
+      }, 0);
     }, 0);
   }
 
   function hideMenu() {
     _isMenuVisible = false;
+    if (_filterable) {
+      setDisplayedValue();
+    }
   }
 
-  function isFilterMatch(option: Option, filter: string) {
+  function isFilterMatch(option: Option, filter: string, partialMatch = true) {
+    // empty string matches all
     if (filter.length === 0) return true;
 
     let value = option.filter || option.label || option.value;
     value = value.toLowerCase();
-    filter = filter.toLowerCase();
+    filter = filter.toLowerCase().trim();
+
+    if (!partialMatch) {
+      return value === filter;
+    }
 
     return value.startsWith(filter) || value.includes(" " + filter);
   }
 
-  function dispatchValue(value?: string) {
+  // update the value show to the user in the <input> element
+  function setDisplayedValue() {
+    _inputEl.value = _selectedOption?.label || _selectedOption?.value || "";
+  }
+
+  function dispatchValue(newValue?: string) {
     const detail = _multiselect
-      ? { name, values: [value, ..._values] }
-      : { name, value: value };
+      ? { name, values: [newValue, ..._values] }
+      : { name, value: newValue };
+
+    if (!_isDirty) {
+      return;
+    }
 
     setTimeout(() => {
-      _rootEl.dispatchEvent(
-        new CustomEvent("_change", { composed: true, detail }),
+      _rootEl?.dispatchEvent(
+        new CustomEvent("_change", { composed: true, detail, bubbles: true }),
       );
       _isDirty = false;
     }, 1);
@@ -302,43 +454,73 @@
 
   function onSelect(option: Option) {
     if (_disabled) return;
+
+    _isDirty = option.value !== _selectedOption?.value;
+    _selectedOption = option;
+
     if (!_native) {
-      _isDirty = true;
+      syncFilteredOptions();
+      setDisplayedValue();
+      setHighlightedToSelected();
       hideMenu();
-      _inputEl.value = option.label;
     }
     dispatchValue(option.value);
   }
 
-  /**
-   * When website autofill value without user keyboard
-   */
-  async function onChange() {
-    await tick();
+  function onFilteredOptionClick(option: Option) {
+    _isDirty = true;
+    onSelect(option);
+  }
+
+  // Auto-select matching option from input after browser autofill/autocomplete or paste from clipboard.
+  function onInputChange(e: Event) {
+    if (_disabled || !_filterable) return;
+    const isAutofilled =
+      testid === "test-autofill" ||
+      _inputEl.matches(":-webkit-autofill") ||
+      _inputEl.matches(":autofill");
+    if (!isAutofilled) return;
+
     syncFilteredOptions();
-    if (_filteredOptions.length === 1) {
-      dispatchValue(_filteredOptions[0].value);
-      setTimeout(() => {
-        hideMenu();
-      }, 100);
+
+    const inputValue = _inputEl?.value || "";
+    const hasInputValue = inputValue !== "";
+    const matchedOption = hasInputValue
+      ? _filteredOptions.find((option) =>
+          isFilterMatch(option, inputValue, false),
+        )
+      : null;
+
+    if (!_selectedOption) {
+      if (matchedOption) {
+        onFilteredOptionClick(matchedOption);
+      } else {
+        reset();
+      }
     }
+
+    setTimeout(() => {
+      hideMenu();
+    }, 2);
   }
 
   function onInputKeyUp(e: KeyboardEvent) {
     if (_disabled) return;
+    _isDirty = true;
     _eventHandler.handleKeyUp(e);
   }
 
   function onInputKeyDown(e: KeyboardEvent) {
     if (_disabled) return;
+    _isDirty = true;
     _eventHandler.handleKeyDown(e);
   }
 
   function onClearIconKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter" || e.key === " ") {
-      e.stopPropagation();
       reset();
       showMenu();
+      e.stopPropagation();
     }
   }
 
@@ -351,6 +533,7 @@
   function onNativeSelect(e: Event) {
     const target = e.currentTarget as HTMLSelectElement;
     const option = _options[target.selectedIndex];
+    _isDirty = true;
     onSelect(option);
   }
 
@@ -359,50 +542,50 @@
 
     _activeDescendantId = undefined;
     _highlightedIndex = -1;
-    _inputEl.value = "";
-    _isDirty = false;
-    syncFilteredOptions();
+    _selectedOption = undefined;
+    _isDirty = true;
 
+    syncFilteredOptions();
     dispatchValue("");
+    setDisplayedValue();
   }
 
   function onChevronClick(e: Event) {
-    showMenu();
+    if (_isMenuVisible) {
+      _inputEl?.focus();
+      hideMenu();
+    } else {
+      showMenu();
+    }
+    e.preventDefault();
     e.stopPropagation();
   }
 
+  function onFocus(e: Event) {
+    dispatch(_rootEl, "help-text::announce", undefined, { bubbles: true });
+  }
+
   class ComboboxKeyUpHandler implements EventHandler {
-    constructor(private input: HTMLInputElement) {
-      input.addEventListener("blur", async (e) => {
-        if (!_isDirty) return;
-        if (!_filterable) return;
+    constructor(private input: HTMLInputElement) {}
 
-        const input = e.target as HTMLInputElement;
-        const selectedOption = _filteredOptions.find(
-          (o) => o.label === input.value,
-        );
-
-        if (!selectedOption) {
-          dispatchValue("");
-          input.value = "";
-        }
-      });
-    }
-
-    onEscape(e: KeyboardEvent) {
+    onEscape(_e: KeyboardEvent) {
       reset();
-      _inputEl.focus();
-      e.preventDefault();
-      e.stopPropagation();
+      // FIXME: on escape should allow the next tab click to move to the next element, currently
+      // clicking tab after esc will refocus onto the Dropdown
+
+      // _inputEl.focus();
+      // e.preventDefault();
+      // e.stopPropagation();
     }
 
     onEnter(e: KeyboardEvent) {
       const option = _filteredOptions[_highlightedIndex];
       if (option) {
+        _isDirty = option.value !== _selectedOption?.value;
         onSelect(option);
       }
 
-      if (_inputEl.value) {
+      if (_selectedOption) {
         hideMenu();
       } else {
         showMenu();
@@ -413,6 +596,7 @@
 
     onArrow(e: KeyboardEvent, direction: "up" | "down") {
       if (!_isMenuVisible) showMenu();
+
       changeHighlightedOption(direction === "up" ? -1 : 1);
       e.stopPropagation();
     }
@@ -420,24 +604,22 @@
     onTab(_: KeyboardEvent) {
       const matchedOption = _filteredOptions.find(
         (option) =>
-          option.label.toLowerCase() === this.input.value.toLowerCase(),
+          option.label?.toLowerCase() === this.input.value.toLowerCase(),
       );
+
       if (matchedOption) {
         onSelect(matchedOption);
       }
+
       hideMenu();
     }
 
     onKeyUp(_: KeyboardEvent) {
       showMenu();
-      _isDirty = true;
     }
 
     handleKeyUp(e: KeyboardEvent) {
       switch (e.key) {
-        case "Enter":
-          this.onEnter(e);
-          break;
         case "ArrowUp":
           this.onArrow(e, "up");
           break;
@@ -453,6 +635,12 @@
             this.input.value.length,
           );
           break;
+        case "Tab":
+          // ignore tab
+          break;
+        case "Enter":
+          // ignore enter (to avoid onKeyUp)
+          break;
         default:
           this.onKeyUp(e);
           break;
@@ -461,6 +649,9 @@
 
     handleKeyDown(e: KeyboardEvent) {
       switch (e.key) {
+        case "Enter":
+          this.onEnter(e);
+          break;
         case "Escape":
           this.onEscape(e);
           break;
@@ -530,167 +721,179 @@
 </script>
 
 <!-- Template -->
-<div bind:this={_wrapperEl}>
-  <div
-    data-testid={`${name}-dropdown`}
-    class="dropdown"
-    class:dropdown-native={_native}
-    style={`
+<div
+  bind:this={_rootEl}
+  data-testid={testid || `${name}-dropdown`}
+  class="dropdown"
+  class:dropdown-native={_native}
+  style={`
       ${calculateMargin(mt, mr, mb, ml)};
       --width: ${_width};
     `}
-    bind:this={_rootEl}
-  >
-    {#if _native}
-      <select
-        {name}
-        aria-label={arialabel || name}
-        aria-labelledby={arialabelledby}
-        class:error={_error}
-        disabled={_disabled}
-        id={name}
-        bind:this={_selectEl}
-        on:change={onNativeSelect}
-      >
-        <slot />
-        {#each _options as option}
-          <option selected={value === option.value} value={option.value}>
-            {option.label}
-          </option>
-        {/each}
-      </select>
-    {:else}
-      <!-- list and filter -->
+  bind:clientWidth={_popoverMaxWidth}
+>
+  {#if _native}
+    <select
+      {name}
+      aria-label={arialabel || name}
+      aria-labelledby={arialabelledby}
+      class:error={_error}
+      disabled={_disabled}
+      id={name}
+      {autocomplete}
+      on:change={onNativeSelect}
+      on:focus={onFocus}
+    >
       <slot />
-      <goa-popover
-        {disabled}
-        {relative}
-        data-testid="option-list"
-        maxwidth={_width}
-        open={_isMenuVisible}
-        padded="false"
-        tabindex="-1"
-        width={_width}
-        on:_open={showMenu}
-        on:_close={hideMenu}
+      {#each _options as option}
+        <option selected={value === option.value} value={option.value}>
+          {option.label}
+        </option>
+      {/each}
+    </select>
+  {:else}
+    <slot />
+    <!-- list and filter -->
+    <goa-popover
+      {disabled}
+      data-testid="option-list"
+      width={`${_popoverMaxWidth || 0}`}
+      minwidth={_dropdownWidth}
+      maxwidth={_dropdownWidth}
+      open={_isMenuVisible}
+      padded="false"
+      tabindex="-1"
+      filterablecontext={fromBoolean(_filterable)}
+      on:_open={showMenu}
+      on:_close={hideMenu}
+    >
+      <div
+        slot="target"
+        class="dropdown-input-group"
+        class:dropdown-input-group--disabled={_disabled}
+        class:error={_error}
       >
-        <div
-          slot="target"
-          class="dropdown-input-group"
-          class:dropdown-input-group--disabled={_disabled}
-          class:error={_error}
-        >
-          {#if leadingicon}
-            <goa-icon
-              class="dropdown-input--leading-icon"
-              data-testid="leading-icon"
-              type={leadingicon}
-            />
-          {/if}
-
-          <input
-            style={`
-              cursor: ${!_disabled ? (_filterable ? "auto" : "pointer") : "default"};
-            `}
-            data-testid="input"
-            bind:this={_inputEl}
-            type="text"
-            role="combobox"
-            autocomplete="off"
-            aria-autocomplete="list"
-            aria-controls={`menu-${name}`}
-            aria-expanded={_isMenuVisible}
-            aria-label={arialabel || name}
-            aria-labelledby={arialabelledby}
-            id={name}
-            aria-activedescendant={_activeDescendantId}
-            aria-disabled={_disabled}
-            aria-owns={_isMenuVisible ? `menu-${name}` : undefined}
-            aria-haspopup="listbox"
-            disabled={_disabled}
-            readonly={!_filterable}
-            {placeholder}
-            {name}
-            on:keydown={onInputKeyDown}
-            on:keyup={onInputKeyUp}
-            on:change={onChange}
+        {#if leadingicon}
+          <goa-icon
+            class="dropdown-input--leading-icon"
+            data-testid="leading-icon"
+            type={leadingicon}
           />
+        {/if}
 
-          {#if _inputEl?.value && _filterable}
-            <goa-icon
-              id={name}
-              tabindex={_disabled ? -1 : 0}
-              role="button"
-              arialabel={`clear ${arialabel || name}`}
-              ariacontrols={`menu-${name}`}
-              ariaexpanded={fromBoolean(_isMenuVisible)}
-              on:click|stopPropagation={onClearIconClick}
-              on:keydown={onClearIconKeyDown}
-              class="dropdown-icon--clear"
-              class:disabled={_disabled}
-              size="medium"
-              type="close"
-            />
-          {:else}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <goa-icon
-              role="button"
-              tabindex="-1"
-              id={name}
-              arialabel={arialabel || name}
-              ariacontrols={`menu-${name}`}
-              ariaexpanded={fromBoolean(_isMenuVisible)}
-              class="dropdown-icon--arrow"
-              size="medium"
-              type={_isMenuVisible ? "chevron-up" : "chevron-down"}
-              on:click={onChevronClick}
-            />
-          {/if}
-        </div>
-
-        <!--Menu-->
-        <ul
-          id={`menu-${name}`}
-          role="listbox"
-          tabindex="-1"
-          data-testid="dropdown-menu"
-          bind:this={_menuEl}
+        <input
+          style={`
+            cursor: ${!_disabled ? (_filterable ? "auto" : "pointer") : "default"};
+          `}
+          data-testid="input"
+          bind:this={_inputEl}
+          value={_selectedOption?.label || _selectedOption?.value || ""}
+          type="text"
+          role="combobox"
+          autocomplete="off"
+          aria-autocomplete="list"
+          aria-controls={`menu-${name}`}
+          aria-expanded={_isMenuVisible}
           aria-label={arialabel || name}
           aria-labelledby={arialabelledby}
-          style={`
-            outline: none;
-            overflow-y: auto;
-            max-height: ${maxheight};
-          `}
-        >
-          {#each _filteredOptions as option, index (index)}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <li
-              id={option.value}
-              aria-selected={_inputEl.value === (option.label || option.value)}
-              class="dropdown-item"
-              class:dropdown-item--highlighted={index === _highlightedIndex}
-              class:selected={_inputEl.value === (option.label || option.value)}
-              data-index={index}
-              data-testid={`dropdown-item-${option.value}`}
-              data-value={option.value}
-              role="option"
-              style="display: block"
-              on:click={() => onSelect(option)}
-            >
-              {option.label || option.value}
+          id={name}
+          aria-activedescendant={_activeDescendantId}
+          aria-disabled={_disabled}
+          aria-owns={_isMenuVisible ? `menu-${name}` : undefined}
+          aria-haspopup="listbox"
+          disabled={_disabled}
+          readonly={!_filterable}
+          {placeholder}
+          {name}
+          on:keydown={onInputKeyDown}
+          on:keyup={onInputKeyUp}
+          on:change={onInputChange}
+          on:focus={onFocus}
+          on:click={!_filterable && onChevronClick}
+        />
+
+        {#if _inputEl?.value && _filterable}
+          <goa-icon
+            id={name}
+            data-testid="clear-icon"
+            tabindex={_disabled ? -1 : 0}
+            role="button"
+            arialabel={`clear ${arialabel || name}`}
+            ariacontrols={`menu-${name}`}
+            ariaexpanded={fromBoolean(_isMenuVisible)}
+            on:click={onClearIconClick}
+            on:keydown={onClearIconKeyDown}
+            class="dropdown-icon--clear"
+            class:disabled={_disabled}
+            size="medium"
+            type="close"
+            theme="filled"
+          />
+        {:else}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <goa-icon
+            role="button"
+            tabindex="-1"
+            id={name}
+            arialabel={arialabel || name}
+            ariacontrols={`menu-${name}`}
+            ariaexpanded={fromBoolean(_isMenuVisible)}
+            class="dropdown-icon--arrow"
+            size="medium"
+            type={_isMenuVisible ? "chevron-up" : "chevron-down"}
+            on:click={onChevronClick}
+          />
+        {/if}
+      </div>
+
+      <!--Menu-->
+      <ul
+        id={`menu-${name}`}
+        role="listbox"
+        tabindex="-1"
+        data-testid="dropdown-menu"
+        bind:this={_menuEl}
+        aria-label={arialabel || name}
+        aria-labelledby={arialabelledby}
+        on:focus={onFocus}
+        on:mousedown={(e) => e.preventDefault()}
+        style={`
+          outline: none;
+          overflow-y: auto;
+          max-height: ${maxheight};
+        `}
+      >
+        {#each _filteredOptions as option, index (index)}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <li
+            id={option.value}
+            aria-selected={_selectedOption?.value === option.value}
+            class:selected={_selectedOption?.value === option.value}
+            class="dropdown-item"
+            class:dropdown-item--highlighted={index === _highlightedIndex}
+            data-index={index}
+            data-testid={`dropdown-item-${option.value}`}
+            data-value={option.value}
+            role="option"
+            style="display: block"
+            on:click={(e) => {
+              onFilteredOptionClick(option);
+              _inputEl?.focus();
+              e.stopPropagation();
+            }}
+          >
+            {option.label || option.value}
+          </li>
+        {:else}
+          {#if _filterable}
+            <li class="dropdown-item" data-testid="dropdown-item-not-found">
+              No matches found
             </li>
-          {:else}
-            {#if _filterable}
-              <li class="dropdown-item" data-testid="dropdown-item-not-found">
-                No matches found
-              </li>
-            {/if}
-          {/each}
-        </ul>
-      </goa-popover>
-    {/if}
-  </div>
+          {/if}
+        {/each}
+      </ul>
+    </goa-popover>
+  {/if}
 </div>
 
 <style>
@@ -702,96 +905,71 @@
   .dropdown {
     cursor: pointer;
     width: var(--width, 100%);
-  }
-
-  @media (--mobile) {
-    .dropdown {
-      width: 100%;
-    }
-  }
-
-  @media (--not-mobile) {
-    .dropdown {
-      width: var(--width, 100%);
-    }
+    max-width: 100%;
   }
 
   .dropdown-input-group {
     box-sizing: border-box;
     outline: none;
-    transition: box-shadow 0.1s ease-in;
-    border: 1px solid var(--goa-color-greyscale-700);
-    border-radius: var(--goa-border-radius-m);
+    transition: var(--goa-dropdown-transition);
+    box-shadow: var(--goa-dropdown-border);
+    border-radius: var(--goa-dropdown-border-radius);
     display: inline-flex;
     align-items: stretch;
-
-    /* The vertical align fixes inputs with a leading icon to not be vertically offset */
     vertical-align: middle;
-    background-color: var(--goa-color-greyscale-white);
+    background-color: var(--goa-dropdown-color-bg);
     cursor: pointer;
-    width: var(--width, 100%);
+    width: 100%;
   }
-
   .dropdown-input-group:hover {
-    border-color: var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-hover);
+    box-shadow: var(--goa-dropdown-border-hover);
+    border: none;
   }
-
-  .dropdown-input-group:focus,
-  .dropdown-input-group:focus-within {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  .dropdown-input-group:has(input:focus-visible) {
+    box-shadow: var(--goa-dropdown-border), var(--goa-dropdown-border-focus);
   }
-
-  @container not (--mobile) {
-    .dropdown-input-group {
-      width: var(--width);
-    }
-  }
-
   .dropdown-input-group.error,
   .dropdown-input-group.error:hover {
-    border: 2px solid var(--goa-color-interactive-error);
-    box-shadow: 0 0 0 1px var(--goa-color-interactive-error);
+    box-shadow: var(--goa-dropdown-border-error);
   }
-
-  .dropdown-input-group.error:focus-within,
-  .dropdown-input-group.error:focus {
-    border: 2px solid var(--goa-color-interactive-error);
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  .dropdown-input-group.error:has(:focus-visible) {
+    box-shadow: var(--goa-dropdown-border), var(--goa-dropdown-border-focus);
+  }
+  @container not (--mobile) {
+    .dropdown-input-group {
+      width: var(--width, 100%);
+    }
   }
 
   .dropdown-icon--arrow,
   .dropdown-icon--clear {
-    margin-right: var(--goa-space-s);
+    padding-right: var(--goa-dropdown-space-icon-text);
   }
 
+  /* TODO: add indicator to when the reset button has focus state */
   .dropdown-icon--clear:focus:not(.disabled),
   .dropdown-icon--clear:active:not(.disabled) {
-    color: var(--goa-color-interactive-focus);
     outline: none;
   }
 
   .dropdown-input--leading-icon {
-    margin-left: 0.75rem;
+    margin-left: var(--goa-dropdown-padding-lr);
   }
 
   .dropdown-input--leading-icon + input {
-    padding-left: 0.5rem;
+    padding-left: var(--goa-space-xs);
   }
 
   input {
     display: inline-block;
-    color: var(--goa-color-text-default);
-    font-size: var(--goa-font-size-4);
-    padding: var(--goa-space-xs);
-    padding-left: var(--goa-space-s);
-    line-height: calc(40px - calc(var(--goa-space-xs) * 2));
+    font: var(--goa-dropdown-typography);
+    color: var(--goa-dropdown-color-text);
+    padding: var(--goa-dropdown-padding);
     background-color: transparent;
     width: 100%;
     flex: 1 1 auto;
-    font-family: var(--goa-font-family-sans);
     z-index: 1;
+    text-overflow: ellipsis;
   }
 
   input,
@@ -803,22 +981,26 @@
   }
 
   input[aria-disabled="true"] {
-    color: var(--goa-color-text-secondary);
+    color: var(--goa-dropdown-color-text-disabled);
   }
 
+  /* Dropdown Menu */
   .dropdown-input-group--disabled,
   .dropdown-input-group--disabled:hover,
   .dropdown-input-group--disabled:active,
   .dropdown-input-group--disabled:focus {
-    background-color: var(--goa-color-greyscale-100);
-    border-color: var(--goa-color-greyscale-200) !important;
+    background-color: var(--goa-dropdown-color-bg-disabled);
+    box-shadow: var(--goa-dropdown-border-disabled);
     cursor: default;
-    box-shadow: none !important;
+  }
+  .dropdown-input-group--disabled goa-icon {
+    outline: none;
+    color: var(--goa-dropdown-color-text-disabled);
   }
 
   /** menu **/
   ul[role="listbox"] {
-    border-radius: var(--goa-border-radius-m);
+    border-radius: var(--goa-dropdown-border-radius);
     padding: 0;
     margin: 0;
   }
@@ -827,69 +1009,63 @@
 
   .dropdown-item {
     margin: 0;
-    padding: 0.5rem;
+    padding: var(--goa-dropdown-item-padding);
     cursor: pointer;
-    color: var(--goa-color-greyscale-black);
-
+    color: var(--goa-dropdown-item-color-text);
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal; /* Allows text to wrap */
+    word-break: break-word; /* Ensures long words break onto the next line */
+    overflow-wrap: break-word; /* Alternative for word wrapping */
   }
 
   .dropdown-item:hover,
   .dropdown-item--highlighted {
-    background: var(--goa-color-greyscale-100);
-    color: var(--goa-color-interactive-hover);
+    background: var(--goa-dropdown-item-color-bg-hover);
+    color: var(--goa-dropdown-item-color-text-hover);
   }
 
   .dropdown-item[aria-selected="true"] {
-    background: var(--goa-color-interactive-default);
-    color: var(--goa-color-greyscale-white);
+    background: var(--goa-dropdown-item-color-bg-selected);
+    color: var(--goa-dropdown-item-color-text-selected);
   }
 
   .dropdown-item[aria-selected="true"]:hover,
   .dropdown-item[aria-selected="true"].dropdown-item--highlighted {
-    background: var(--goa-color-interactive-hover);
-    color: var(--goa-color-greyscale-white);
+    background: var(--goa-dropdown-item-color-bg-selected-hover);
+    color: var(--goa-dropdown-item-color-text-selected-hover);
   }
 
   /* Native styling  */
   .dropdown-native {
     position: relative;
-    border: 1px solid var(--goa-color-greyscale-700);
-    border-radius: var(--goa-border-radius-m);
-    background-color: var(--goa-color-greyscale-white);
-    transition: box-shadow 0.1s ease-in;
+    box-shadow: var(--goa-dropdown-border);
+    border-radius: var(--goa-dropdown-border-radius);
+    background-color: var(--goa-dropdown-color-bg);
+    transition: var(--goa-dropdown-transition);
   }
 
   .dropdown-native:has(select:disabled) {
-    background-color: var(--goa-color-greyscale-100);
-    border-color: var(--goa-color-greyscale-200);
-    box-shadow: none;
+    background-color: var(--goa-dropdown-color-bg-disabled);
+    box-shadow: var(--goa-dropdown-border-disabled);
     color: var(--goa-color-text-secondary);
     cursor: default;
   }
 
   .dropdown-native:has(select.error) {
-    border: 2px solid var(--goa-color-interactive-error);
+    box-shadow: var(--goa-dropdown-border-error);
   }
 
   .dropdown-native:hover {
-    border-color: var(--goa-color-interactive-hover);
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-hover);
+    box-shadow: var(--goa-dropdown-border-hover);
   }
 
   select {
     border: none;
-    font: var(--goa-font-family-sans);
+    font: var(--goa-dropdown-typography);
     background-color: transparent;
-    color: var(--goa-color-text-default);
-    font-size: var(--goa-font-size-4);
+    color: var(--goa-dropdown-color-text);
     appearance: none;
-    padding: calc(var(--goa-space-xs) + 1px);
-    padding-left: var(--goa-space-s);
-    padding-right: 3rem;
+    padding: var(--goa-dropdown-padding);
     outline: none;
     width: 100%;
   }
@@ -906,7 +1082,16 @@
     background-repeat: none;
   }
 
-  .dropdown-native:focus-within {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  .dropdown-native:has(:focus-visible) {
+    box-shadow: var(--goa-dropdown-border), var(--goa-dropdown-border-focus);
+  }
+
+  goa-icon:focus-visible {
+    outline: none;
+  }
+
+  ::placeholder {
+    color: var(--goa-dropdown-color-text-placeholder);
+    opacity: 1;
   }
 </style>

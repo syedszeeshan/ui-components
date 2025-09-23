@@ -1,10 +1,12 @@
-import { ReactNode } from "react";
+import { GoabPageBlockSize } from "@abgov/ui-components-common";
+import { ReactNode, type JSX } from "react";
 
 interface WCProps {
-  width: "full" | string;
+  width?: GoabPageBlockSize;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -13,18 +15,18 @@ declare global {
   }
 }
 
-export interface GoAPageBlockProps {
-  width: "full" | string;
+export interface GoabPageBlockProps {
+  width?: GoabPageBlockSize;
   testId?: string;
   children?: ReactNode;
 }
 
 // legacy name
-export type PageBlockProps = GoAPageBlockProps;
+export type PageBlockProps = GoabPageBlockProps;
 
-export function GoAPageBlock(props: PageBlockProps): JSX.Element {
+export function GoabPageBlock(props: PageBlockProps): JSX.Element {
   return (
-    <goa-page-block width={props.width} data-testid={props.testId}>
+    <goa-page-block width={props.width} testid={props.testId}>
       {props.children}
     </goa-page-block>
   );

@@ -1,21 +1,25 @@
-import { useEffect, useRef } from "react";
-import { Margins } from "../../common/styling";
+import { useEffect, useRef, type JSX } from "react";
+import {
+  GoabRadioGroupOnChangeDetail,
+  GoabRadioGroupOrientation,
+  Margins,
+} from "@abgov/ui-components-common";
 
 export * from "./radio";
 
-export type GoARadioGroupOrientation = "horizontal" | "vertical";
-
 interface WCProps extends Margins {
-  ref: React.RefObject<HTMLElement>;
+  ref: React.RefObject<HTMLElement | null>;
   name: string;
   value?: string;
-  orientation?: GoARadioGroupOrientation;
-  disabled?: boolean;
-  error?: boolean;
+  id?: string;
+  orientation?: GoabRadioGroupOrientation;
+  disabled?: string;
+  error?: string;
   arialabel?: string;
+  testid?: string;
 }
 
-declare global {
+declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
@@ -24,25 +28,27 @@ declare global {
   }
 }
 
-export interface GoARadioGroupProps extends Margins {
+export interface GoabRadioGroupProps extends Margins {
   name: string;
   value?: string;
+  id?: string;
   disabled?: boolean;
-  orientation?: GoARadioGroupOrientation;
+  orientation?: GoabRadioGroupOrientation;
   testId?: string;
   error?: boolean;
   ariaLabel?: string;
   children?: React.ReactNode;
-  onChange: (name: string, value: string) => void;
+  onChange?: (detail: GoabRadioGroupOnChangeDetail) => void;
 }
 
-export function GoARadioGroup({
+export function GoabRadioGroup({
   name,
   value,
   children,
   orientation,
-  disabled = false,
-  error = false,
+  disabled,
+  error,
+  id,
   testId,
   ariaLabel,
   mt,
@@ -50,37 +56,39 @@ export function GoARadioGroup({
   mb,
   ml,
   onChange,
-}: GoARadioGroupProps): JSX.Element {
-
+}: GoabRadioGroupProps): JSX.Element {
   const el = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!el.current) {
-      return;
-    }
-    const listener = (e: unknown) => {
-      if (!onChange) {
-        console.warn("Missing onChange function");
-        return;
-      }
-      onChange(name, (e as CustomEvent).detail.value);
+    if (!el.current) return;
+
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent<GoabRadioGroupOnChangeDetail>).detail;
+      onChange?.(detail);
     };
+
     const currentEl = el.current;
-    currentEl.addEventListener("_change", listener);
+    if (onChange) {
+      currentEl.addEventListener("_change", listener);
+    }
+
     return () => {
-      currentEl.removeEventListener("_change", listener);
+      if (onChange) {
+        currentEl.removeEventListener("_change", listener);
+      }
     };
   }, [name, onChange]);
 
   return (
     <goa-radio-group
-      data-testid={testId}
+      testid={testId}
       ref={el}
+      id={id}
       name={name}
       value={value}
       orientation={orientation}
-      disabled={disabled}
-      error={error}
+      disabled={disabled ? "true" : undefined}
+      error={error ? "true" : undefined}
       arialabel={ariaLabel}
       mt={mt}
       mr={mr}
@@ -92,4 +100,4 @@ export function GoARadioGroup({
   );
 }
 
-export default GoARadioGroup;
+export default GoabRadioGroup;

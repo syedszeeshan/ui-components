@@ -1,12 +1,22 @@
 <svelte:options customElement="goa-checkbox" />
 
-<!-- Script -->
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Spacing } from "../../common/styling";
   import { calculateMargin } from "../../common/styling";
 
-  import { fromBoolean, toBoolean } from "../../common/utils";
+  import { dispatch, fromBoolean, receive, relay, toBoolean, announceToScreenReader } from "../../common/utils";
+  import {
+    FieldsetSetValueMsg,
+    FieldsetSetValueRelayDetail,
+    FieldsetSetErrorMsg,
+    FieldsetResetErrorsMsg,
+    FormFieldMountRelayDetail,
+    FormFieldMountMsg,
+    FieldsetResetFieldsMsg,
+    FieldsetErrorRelayDetail,
+  } from "../../types/relay-types";
+
   // Required
   export let name: string;
 
@@ -19,29 +29,133 @@
   export let testid: string = "";
   export let arialabel: string = "";
   export let description: string = "";
+  export let revealarialabel: string = ""; // screen reader will announce this when reveal slot is displayed
+  export let maxwidth: string = "none";
 
   // margin
   export let mt: Spacing = null;
   export let mr: Spacing = null;
-  export let mb: Spacing = null;
+  export let mb: Spacing = "m";
   export let ml: Spacing = null;
 
   // Private
   let _value: string;
+  let _rootEl: HTMLElement;
+  let _formFields: HTMLElement[] = [];
+  let _revealSlotEl: HTMLElement;
   let _checkboxRef: HTMLElement;
   let _descriptionId: string;
+  let _error: boolean;
+  let _prevError: boolean;
+  let _revealSlotHeight: number = 0;
 
   // Binding
   $: isDisabled = toBoolean(disabled);
-  $: isError = toBoolean(error);
+  $: {
+    _error = toBoolean(error);
+    if (_error !== _prevError) {
+      dispatch(
+        _rootEl,
+        "error::change",
+        { isError: _error },
+        { bubbles: true },
+      );
+      _prevError = _error;
+    }
+  }
   $: isChecked = toBoolean(checked);
   $: isIndeterminate = false; // Design review. To be built with TreeView Later
+  $: revealSlotHasContent = _revealSlotHeight > 0;
 
   onMount(() => {
     // hold on to the initial value to prevent losing it on check changes
     _value = value;
     _descriptionId = `description_${name}`;
+
+    addRelayListener();
+    addRevealSlotListener();
+    sendMountedMessage();
   });
+
+  function addRelayListener() {
+    receive(_rootEl, (action, data) => {
+      switch (action) {
+        case FieldsetSetValueMsg:
+          onSetValue(data as FieldsetSetValueRelayDetail);
+          break;
+        case FieldsetSetErrorMsg:
+          setError(data as FieldsetErrorRelayDetail);
+          break;
+        case FieldsetResetErrorsMsg:
+          error = "false";
+          break;
+        case FieldsetResetFieldsMsg:
+          onSetValue({ name, value: "" });
+          break;
+        case FormFieldMountMsg:
+          onFormFieldMount(data as FormFieldMountRelayDetail);
+          break;
+      }
+    });
+  }
+
+  function setError(detail: FieldsetErrorRelayDetail) {
+    error = detail.error ? "true" : "false";
+  }
+
+  // allow for the listening of messages sent by form-fields specific to the "reveal" slot
+  function addRevealSlotListener() {
+    receive(_revealSlotEl, (action, data) => {
+      switch (action) {
+        case FormFieldMountMsg:
+          setCheckStatusByChildState(data as FormFieldMountRelayDetail);
+          break;
+      }
+    });
+    if (_revealSlotEl) {
+      addRevealSlotEventListeners();
+    }
+  }
+
+  function setCheckStatusByChildState(detail: FormFieldMountRelayDetail) {
+    setTimeout(() => {
+      // @ts-expect-error
+      checked ||= !!detail.el.value;
+    }, 1000);
+  }
+
+  // save all child elements within the reveal slot for later reference
+  function onFormFieldMount(detail: FormFieldMountRelayDetail) {
+    // only save the child elements within the reveal slot
+    if (!$$slots.reveal) return;
+    _formFields = [..._formFields, detail.el];
+  }
+
+  //
+  function resetChildFormFields() {
+    for (const el of _formFields) {
+      // send reset message ot child form fields
+      relay(el, FieldsetResetFieldsMsg);
+    }
+  }
+
+  function onSetValue(detail: FieldsetSetValueRelayDetail) {
+    // @ts-expect-error
+    value = detail.value;
+    checked = detail.value ? "true" : "false";
+    dispatch(_checkboxRef, "_change", { name, value }, { bubbles: true });
+  }
+
+  function sendMountedMessage() {
+    if (!name) return;
+
+    relay<FormFieldMountRelayDetail>(
+      _rootEl,
+      FormFieldMountMsg,
+      { name, el: _rootEl },
+      { bubbles: true, timeout: 10 },
+    );
+  }
 
   function onChange(e: Event) {
     // Manually set the focus back to the checkbox after the state change
@@ -58,25 +172,65 @@
       new CustomEvent("_change", {
         composed: true,
         detail: { name, checked: newCheckStatus, value: newValue },
+        bubbles: true,
       }),
     );
+
+    if (!!$$slots.reveal && !newCheckStatus) {
+      resetChildFormFields();
+    }
+
+    // Announce the reveal content change to screen readers if checkbox is checked and reveal content exists
+    if ($$slots.reveal && newCheckStatus && _revealSlotEl && revealarialabel !== "") {
+      announceToScreenReader(revealarialabel);
+    }
+  }
+
+  function onFocus() {
+    dispatch(_rootEl, "help-text::announce", undefined, { bubbles: true });
+  }
+
+  /**
+   * Stop propagate the _click,_change to checkbox (so it won't toggle the value)
+   */
+  function addRevealSlotEventListeners() {
+    _revealSlotEl.addEventListener("_click", (e: Event) => {
+      // when we click a button/accordion.. inside the reveal slot, it will uncheck the parent checkbox. stopPropagation (_click) will fix it
+      e.stopPropagation();
+    });
+
+    _revealSlotEl.addEventListener("_change", (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const eventDetail = customEvent.detail;
+      // when we check/change a checkbox/input... inside the reveal slot, it will uncheck the parent checkbox whenever _change is fired. stopPropagation (_change) will fix it
+      e.stopPropagation();
+
+      // If this is a form field value change (public form)
+      // relay it so the Fieldset initialize the reveal slot form field to public form state
+      if (eventDetail && eventDetail.name && typeof eventDetail.value !== 'undefined') {
+        dispatch(_rootEl, "_revealChange", eventDetail, { bubbles: true });
+      }
+    });
   }
 </script>
 
 <!-- View -->
 
-<div style={calculateMargin(mt, mr, mb, ml)} class="goa-checkbox">
+<div
+  bind:this={_rootEl}
+  class="root"
+  style={`
+    ${calculateMargin(mt, mr, mb, ml)}
+    max-width: ${maxwidth};
+  `}
+>
   <label
-    class="goa-checkbox-label"
     data-testid={testid}
     for={name}
-    class:goa-checkbox--disabled={isDisabled}
-    class:goa-checkbox--error={isError}
+    class:disabled={isDisabled}
+    class:error={_error}
   >
-    <div
-      class="goa-checkbox-container"
-      class:goa-checkbox--selected={isChecked}
-    >
+    <div class="container" class:selected={isChecked}>
       <input
         bind:this={_checkboxRef}
         id={name}
@@ -85,9 +239,11 @@
         disabled={isDisabled}
         type="checkbox"
         value={`${value}`}
-        aria-label={arialabel || name}
-        aria-describedby={description ? _descriptionId : null}
+        aria-label={arialabel || text || name}
+        aria-describedby={$$slots.description || description !== "" ? _descriptionId : null}
+        aria-invalid={_error ? "true" : "false"}
         on:change={onChange}
+        on:focus={onFocus}
       />
       {#if isIndeterminate}
         <svg
@@ -109,20 +265,28 @@
         </svg>
       {/if}
     </div>
-    <div class="goa-checkbox-text">
-      <div class="label-text" data-testid="text">
-        <slot>
-          {text}
-        </slot>
-      </div>
+    <div class="text" data-testid="text">
+      <slot></slot>
+        {text}
     </div>
   </label>
   {#if $$slots.description || description}
-    <div class="description-text" id={_descriptionId} data-testid="description">
-      <slot name="description"/>
+    <div class="description" id={_descriptionId} data-testid="description">
+      <slot name="description" />
       {description}
     </div>
   {/if}
+
+  <!-- Any form fields within the slot must be initially rendered to allow for public-form binding -->
+  <div
+    bind:this={_revealSlotEl}
+    class="reveal"
+    class:visible={$$slots.reveal && isChecked}
+    class:has-content={revealSlotHasContent}
+    bind:clientHeight={_revealSlotHeight}
+  >
+    <slot name="reveal" />
+  </div>
 </div>
 
 <!-- Styles -->
@@ -132,123 +296,203 @@
     font-family: var(--goa-font-family-sans);
     display: block;
   }
-  .goa-checkbox-label {
-    display: flex;
-    cursor: pointer;
+
+
+  .root {
+    display: block;
+    height: auto; /* Automatically adjusts to content */
+    min-height: 0; /* Ensures no unnecessary minimum height */
+    padding: 0; /* Remove padding if it's affecting height */
   }
 
-  .goa-checkbox {
-    min-height: calc(3rem - 0.25rem);
-  }
-  .goa-checkbox input[type="checkbox"] {
-    /* hide the input, but still make it tab-able */
-    opacity: 0;
+  input[type="checkbox"] {
+    /* hide the input, but still make it tabbable */
     position: absolute;
+    opacity: 0;
+    transform: scale(0);
+    margin: 0;
     cursor: pointer;
   }
 
-  .goa-checkbox-container {
-    box-sizing: border-box;
-    border: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
-    border-radius: 2px;
-    background-color: var(--goa-color-greyscale-white);
-    height: 1.5rem;
-    width: 1.5rem;
-    display: flex;
-    justify-content: center;
-    padding: 3px;
-
-    /* prevent squishing of checkbox */
-    flex: 0 0 auto;
-  }
-  .goa-checkbox-container svg {
-    fill: var(--goa-color-greyscale-white);
-  }
-
-  .goa-checkbox-container.goa-checkbox--selected {
-    background-color: var(--goa-color-interactive-default);
-    border: none;
-  }
-
-  .goa-checkbox-container.goa-checkbox--selected:hover {
-    background-color: var(--goa-color-interactive-hover);
-  }
-
-  .goa-checkbox-container:hover {
-    box-shadow: 0 0 0 var(--goa-border-width-m)
-      var(--goa-color-interactive-hover);
-    border: none;
-  }
-
-  .goa-checkbox-container:focus-within,
-  .goa-checkbox-container:focus,
-  .goa-checkbox-container:active {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
-    border: var(--goa-border-width-s) solid var(--goa-color-greyscale-700);
-    outline: none;
-  }
-
-  .goa-checkbox-container.goa-checkbox--selected:focus-within {
-    background-color: var(--goa-color-interactive-default);
-    border: none;
-  }
-
-  .goa-checkbox-text {
-    padding-left: 0.5rem;
-    user-select: none;
-    font-weight: var(--goa-font-weight-regular);
-  }
-
-  /* Error state */
-  .goa-checkbox--error .goa-checkbox-container,
-  .goa-checkbox--error .goa-checkbox-container:hover {
-    border: var(--goa-border-width-s) solid var(--goa-color-emergency-default);
-    box-shadow: inset 0 0 0 1px var(--goa-color-emergency-default);
-    background-color: var(--goa-color-greyscale-white);
-  }
-
-  .goa-checkbox--error .goa-checkbox-container:focus-within {
-    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
-    background-color: var(--goa-color-greyscale-white);
-    border: var(--goa-border-width-s) solid var(--goa-color-emergency-default);
-  }
-
-  .goa-checkbox--error .goa-checkbox-container svg {
-    fill: var(--goa-color-emergency-default);
-  }
-
-  /* disabled state */
-  .goa-checkbox--disabled .goa-checkbox-text {
-    opacity: 40%;
-  }
-
-  .goa-checkbox--disabled .goa-checkbox-container,
-  .goa-checkbox--disabled .goa-checkbox-container:hover {
-    border: var(--goa-border-width-s) solid var(--goa-color-greyscale-400);
-    box-shadow: none;
-    opacity: 40%;
-  }
-
-  .goa-checkbox--disabled .goa-checkbox-container.goa-checkbox--selected,
-  .goa-checkbox--disabled .goa-checkbox-container.goa-checkbox--selected:hover {
-    border: none;
-    background-color: var(--goa-color-interactive-default);
-  }
-
-  .goa-checkbox--disabled.goa-checkbox--error
-    .goa-checkbox-container.goa-checkbox--selected {
-    border: var(--goa-border-width-s) solid var(--goa-color-emergency-default);
-    box-shadow: inset 0 0 0 1px var(--goa-color-emergency-default);
-  }
-
-  .goa-checkbox--disabled,
   input[type="checkbox"][disabled]:hover {
     cursor: default;
   }
 
-  .description-text {
-    font: var(--goa-typography-body-xs);
-    margin-left: var(--goa-space-xl);
-    margin-top: var(--goa-space-2xs);
+  label {
+    display: flex;
+    cursor: pointer;
   }
+
+  /* Hover style when the user hovers over the label */
+  label:hover .container {
+    border: var(--goa-checkbox-border-hover);
+  }
+
+  label:hover .container.selected {
+    background-color: var(--goa-checkbox-color-bg-checked-hover);
+    border: none;
+  }
+
+  .text {
+    padding-left: var(--goa-checkbox-gap); /* Space between checkbox and text */
+    user-select: none;
+    font: var(--goa-checkbox-label-font-size);
+    color: var(--goa-checkbox-color-label);
+  }
+
+  .description {
+    font: var(--goa-checkbox-description-font-size);
+    margin-left: var(--goa-space-xl);
+    margin-top: var(--goa-space-2xs); /* Space between text and description */
+  }
+
+  .reveal {
+    display: none;
+    height: 0;
+  }
+  .reveal.visible {
+    display: block;
+    height: fit-content;
+  }
+  .reveal.visible.has-content {
+    border-left: 4px solid var(--goa-color-greyscale-200);
+    padding: var(--goa-space-m);
+    margin: var(--goa-space-2xs) 0 0 calc(var(--goa-space-s) - 2px);
+  }
+
+  /* Container */
+  .container {
+    box-sizing: border-box;
+    border: var(--goa-checkbox-border);
+    border-radius: var(--goa-checkbox-border-radius);
+    background-color: var(--goa-checkbox-color-bg);
+    height: var(--goa-checkbox-size);
+    width: var(--goa-checkbox-size);
+    margin-top: 3px; /* aligns the checkbox with the text */
+    display: flex;
+    justify-content: center;
+    flex: 0 0 auto; /* prevent squishing of checkbox */
+  }
+  .container:hover {
+    border: var(--goa-checkbox-border-hover);
+  }
+  .container svg {
+    fill: var(--goa-checkbox-color-bg);
+    margin: 3px;
+  }
+  .container.selected {
+    background-color: var(--goa-checkbox-color-bg-checked);
+    border: none;
+  }
+  .container.selected:hover {
+    background-color: var(--goa-checkbox-color-bg-checked-hover);
+  }
+
+  /* Error Container */
+  .error .container,
+  .error .container:hover {
+    border: var(--goa-checkbox-border-error);
+    background-color: var(--goa-checkbox-color-bg);
+    box-shadow: none;
+  }
+  .error .container.selected,
+  .error .container.selected:hover {
+    border: var(--goa-checkbox-border-error);
+    background-color: var(--goa-checkbox-color-bg);
+  }
+  label:hover.error .container {
+    border: var(--goa-checkbox-border-error);
+  }
+  label:hover.error .container.selected {
+    border: var(--goa-checkbox-border-error);
+    background-color: var(--goa-checkbox-color-bg);
+  }
+  .error .container svg {
+    fill: var(--goa-checkbox-color-bg-checked-error);
+    margin: 1px;
+  }
+
+  /* Focus + Error Container */
+  .error .container:has(:focus-visible) {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  }
+  .error .container:has(:focus-visible):hover {
+    outline: none;
+    border: var(--goa-checkbox-border-error);
+  }
+  .error .container.selected:has(:focus-visible):hover {
+    outline: none;
+    border: none;
+    background-color: var(--goa-checkbox-color-bg);
+  }
+  label:hover.error .container.selected:has(:focus-visible) {
+    outline: none;
+    border: var(--goa-checkbox-border-error);
+    background-color: var(--goa-checkbox-color-bg);
+  }
+  label:hover.error .container:has(:focus-visible) {
+    outline: none;
+    border: var(--goa-checkbox-border-error);
+  }
+
+  /* Focus Container */
+  .container:has(:focus-visible) {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--goa-color-interactive-focus);
+  }
+  .container:has(:focus-visible):hover {
+    outline: none;
+    border: var(--goa-checkbox-border);
+  }
+  .container.selected:has(:focus-visible):hover {
+    outline: none;
+    border: none;
+    background-color: var(--goa-checkbox-color-bg-checked);
+  }
+  label:hover .container.selected:has(:focus-visible) {
+    outline: none;
+    border: none;
+    background-color: var(--goa-checkbox-color-bg-checked);
+  }
+  label:hover .container:has(:focus-visible) {
+    outline: none;
+    border: var(--goa-checkbox-border);
+  }
+
+  /* Disabled */
+  .disabled {
+    cursor: default;
+  }
+  .disabled .text {
+    color: var(--goa-checkbox-color-label-disabled);
+  }
+
+  label.disabled + .description {
+    color: var(--goa-checkbox-color-label-disabled);
+    cursor: default;
+  }
+
+  /* override base settings */
+  .disabled:not(.error) .container {
+    border: var(--goa-checkbox-border-disabled);
+    box-shadow: none;
+  }
+  .disabled:not(.error) .container.selected {
+    border: none;
+    background-color: var(--goa-checkbox-color-bg-checked-disabled);
+  }
+  .disabled.error .container.selected {
+    border: var(--goa-checkbox-border-disabled-error);
+  }
+  .disabled.error .container {
+    border: var(--goa-checkbox-border-disabled-error);
+  }
+  label:hover.disabled.error .container {
+    border: var(--goa-checkbox-border-disabled-error);
+  }
+  .disabled.error .container svg {
+    fill: #F58185;
+  }
+
 </style>
